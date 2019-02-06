@@ -17,5 +17,5 @@ To plot course of each generation use matlab script:
   plot_data.m
   
 This script provides 2D and 3D visualisations of each generation on selected surface.
-Selected function, min range and max range of searching are saved in csv file and read automatically in plot_data.m but you may need to change the resolution of plotted functions with parameter 'podzialka'.
+Selected function, min range and max range of searching are saved in csv file and read automatically in plot_data.m but you may need to change the resolution of plotted functions with parameter 'resolution'.
  
