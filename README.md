@@ -9,7 +9,7 @@ Algorithm is based on:
 To use algorithm:  
   kernel.cu
 
-There are 6 build-in functions to test algorithm, they are described at the beggining of kernel.cu. To change selected function adjust parameter 'KTORA_FUNKCJA'.
+There are 6 build-in functions to test algorithm, they are described at the beggining of kernel.cu. To change selected function adjust parameter 'WHICH_FUNCTION'.
 
 Running kernel.cu shows in console value of finded optimum and creates csv file with the course of each generation.
 
