@@ -1,24 +1,24 @@
-//Bartosz Bielinski - Algorytm Genetyczny
+//Bartosz Bielinski - Genetic Algorithm
 
 /*
-	Opis algorytmu:
-	- Pierwsza populacja jest generowana całkowicie losowo
-	- Fitness jest liczony na podstawie wartości wybranej optymalizowanej funkcji w danym punkcie (x,y)
-	- Osobniki są oceniane na podstawie wartości fitnessu i jest im przypisywane prawdopodobieństwo na podstawie metody "rank based selection", która może być optymalizowany za pomocą parametru 'RANK_STEP_DOWN' i 'CROSSOVER_PROBABILITY'
-	- Do losowania osobników używany jest algorytm losowania ruletkowego
-	- Do procesu crossover wykorzystywana jest metoda "Blend Crossover" dla Real-Coded Genetic Algorithms i może być on optymalizowany za pomocą parametru 'alpha'
-	- W przypadku mutacji, mutowany osobnik jest przesuwany w osiach x i y o losową wartość z przedziału <-Mutation_step_max, Mutation_step_max>, parametry do optymalizowania: 'MUTATION_PROBABILITY'
-	- Optimum jest wyliczane jako srednia z kilku najlepszych osobnikow na końcu, ilość branych pod uwagę osobników jest zmieniana za pomocą zmiennej 'ile_wliczonych', domyślnie 1.
-	- Dane są zapisane do plików zewnętrznych w formacie .csv, dla CPU do pliku 'osobniki.csv', a dla GPU do 'osobniki_gpu.csv'.
+	Description of algorithm:
+	- First population is generated randomly
+	- Fitness is estimated based on value of selected optimized function in point (x,y)
+	- Members are sorted on basis of value of fitness and then each member is getting probability based on "rank based selection", which can be adjusted with parameters 'RANK_STEP_DOWN' and 'CROSSOVER_PROBABILITY'
+	- Roulette selection algorithm is used to choose random members
+	- To crossover process the "Blend Crossover" for Real-Coded Genetic Algorithms is used and it can be adjusted with parameter 'alpha' 
+	- In case of mutation, the mutated member is moved along x and y axis by radom value from range <-Mutation_step_max, Mutation_step_max>, parameter to adjust: 'MUTATION_PROBABILITY'
+	- Optimum is calculated as an average from a few best members, the amount of members included in average can be adjusted with parameter 'how_many_included_average' (default: 1) 
+	- Each generation is saved to csv file, for CPU to file 'osobniki.csv', and for GPU to 'osobniki_gpu.csv'.
 */
 /*
-	Funkcje do wyboru:
-	1. f(x,y) = sin(x) + cos(x) - brak optimum globalnego - dowolny przedział
-	2. f(x,y) = x^2 + y^2 - parabola w 3D (taka mistka), minium globalne w (0,0), f(0,0) = 0 - dowolny przedział
-	3. f(x,y) = y*sin(x) - x*sin(y) - optimum do znalezienia wizualnie, dowolny przedział
-	4. McCormick Function - f(x,y) =  sin(x+y) + (x-y)^2 -1.5x +2.5y +1, minimum globalne na przedziale -1.5<=x<=4  -3<=y<=4  w punkcie (-0.54719, -1.54719) i f = -1.9133
-	5. Eggholder function - na przedziale  -512<=x,y<=512 jest minimum globalne w (512, 404.2319) i f = -959.6407
-	6. Schwefel Function - na przedziale -500<=x,y<=500 ma minimum globalne w (420.9687, 420.9687) i f = 0.
+	Build-in functions:
+	1. f(x,y) = sin(x) + cos(x) - no global minimum - any range of searching
+	2. f(x,y) = x^2 + y^2 - parabola in 3D, global minimum in (0,0), f(0,0) = 0 - any range of searching
+	3. f(x,y) = y*sin(x) - x*sin(y) - minimum can be find visually with plot_data.m, any range of searching
+	4. McCormick Function - f(x,y) =  sin(x+y) + (x-y)^2 -1.5x +2.5y +1, global minimum in range -1.5<=x<=4  -3<=y<=4 in point (-0.54719, -1.54719) and f = -1.9133
+	5. Eggholder function - in range -512<=x,y<=512 there is global minimum in (512, 404.2319) and f = -959.6407
+	6. Schwefel Function - in range -500<=x,y<=500 there is global minimum in (420.9687, 420.9687) and f = 0.
 */
 
 #include <iostream>
@@ -42,23 +42,23 @@ using namespace std;
 using namespace std::chrono;
 
 //Parametry do dostosowania
-#define zakres_min_x (float) -500
-#define zakres_max_x (float) 500
-#define zakres_min_y (float) -500
-#define zakres_max_y (float) 500
-#define KTORA_FUNKCJA 6
-#define Czy_wyswietl_osobniki_cpu 0
-#define Czy_wyswietl_osobniki_gpu 0
-#define Czy_wyswietl_generacje 0
-#define czy_zapisac_do_pliku 1
-#define czy_licz_cpu 1
-#define czy_licz_gpu 1
-#define ile_wliczonych 1
+#define range_min_x (float) -10
+#define range_max_x (float) 10
+#define range_min_y (float) -10
+#define range_max_y (float) 10
+#define WHICH_FUNCTION 3
+#define Do_show_members_cpu 0
+#define Do_show_members_gpu 0
+#define Do_show_generations 0
+#define Do_save_to_file 1
+#define do_run_on_cpu 1
+#define do_run_on_gpu 1
+#define how_many_included_average 1
 
-#define ILE_OSOBNIKOW 5000
-#define ILE_GENERACJI 100
+#define How_many_members 100
+#define How_many_generations 30
 //#define Mutation_step_min (float)0.1
-#define Mutation_step_max (float)1000
+#define Mutation_step_max (float)20
 #define alpha (float)0.1
 #define RANK_STEP_DOWN (float)0.3
 #define CROSSOVER_PROBABILITY (float)0.7
@@ -67,7 +67,7 @@ using namespace std::chrono;
 #define BLOCKS_PER_KERNEL 1000
 #define THREADS_PER_BLOCK 1024
 
-struct Osobnik {
+struct Member {
 
 	float x=0;
 	float y=0;
@@ -77,167 +77,167 @@ struct Osobnik {
 };
 
 
-float FitFunction(Osobnik osobnik);
-bool compareByFit(const Osobnik &a, const Osobnik &b);
-bool compareByFit_gpu(const Osobnik &a, const Osobnik &b);
-void Wypisz_Populacje(vector <Osobnik> Populacja);
-void Wypisz_Populacje(Osobnik *Populacja);
+float FitFunction(Member member);
+bool compareByFit(const Member &a, const Member &b);
+bool compareByFit_gpu(const Member &a, const Member &b);
+void Show_Population(vector <Member> Population);
+void Show_Population(Member *Population);
 float RandomFloat(float a, float b);
-int Roulete_Selection(vector <Osobnik> Populacja);
-void Mutuj(Osobnik &osobnik);
-void Policz_Fitness(vector <Osobnik> &Populacja);
-void Generuj_Populacje(vector <Osobnik> &Populacja);
+int Roulete_Selection(vector <Member> Population);
+void Mutate(Member &member);
+void Count_Fitness(vector <Member> &Population);
+void Generate_Population(vector <Member> &Population);
 
 
-__host__ __device__ bool operator<(const Osobnik &lhs, const Osobnik &rhs)
+__host__ __device__ bool operator<(const Member &lhs, const Member &rhs)
 { return (lhs.fitness > rhs.fitness); };
 
 
-__global__ void Generuj_Populacje_gpu(Osobnik *Populacja_gpu_dev, float *Random_x, float *Random_y)
+__global__ void Generate_Population_gpu(Member *Population_gpu_dev, float *Random_x, float *Random_y)
 {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 
-	if (index < ILE_OSOBNIKOW)
+	if (index < How_many_members)
 	{
-		Populacja_gpu_dev[index].x = Random_x[index];
-		Populacja_gpu_dev[index].y = Random_y[index];
+		Population_gpu_dev[index].x = Random_x[index];
+		Population_gpu_dev[index].y = Random_y[index];
 	}
 }
 
-__global__ void Policz_Fitness_gpu(Osobnik* Populacja_gpu_dev)
+__global__ void Count_Fitness_gpu(Member* Population_gpu_dev)
 {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 
-	if (index < ILE_OSOBNIKOW)
+	if (index < How_many_members)
 	{
-		if (KTORA_FUNKCJA == 1)
-			Populacja_gpu_dev[index].fitness = -(sin(Populacja_gpu_dev[index].x) + cos(Populacja_gpu_dev[index].y));
-		else if (KTORA_FUNKCJA == 2)
-			Populacja_gpu_dev[index].fitness = -((Populacja_gpu_dev[index].x)*(Populacja_gpu_dev[index].x) + (Populacja_gpu_dev[index].y)*(Populacja_gpu_dev[index].y));
-		else if (KTORA_FUNKCJA == 3)
-			Populacja_gpu_dev[index].fitness = -((Populacja_gpu_dev[index].y)*sin(Populacja_gpu_dev[index].x) - (Populacja_gpu_dev[index].x)*cos(Populacja_gpu_dev[index].y));
-		else if (KTORA_FUNKCJA == 4)
-			Populacja_gpu_dev[index].fitness = -(sin(Populacja_gpu_dev[index].x + Populacja_gpu_dev[index].y) + (Populacja_gpu_dev[index].x - Populacja_gpu_dev[index].y)*(Populacja_gpu_dev[index].x - Populacja_gpu_dev[index].y) - 1.5*Populacja_gpu_dev[index].x + 2.5*Populacja_gpu_dev[index].y + 1);
-		else if (KTORA_FUNKCJA == 5)
-			Populacja_gpu_dev[index].fitness = -(-(Populacja_gpu_dev[index].y + 47)*sin(sqrt(abs((Populacja_gpu_dev[index].x / 2) + (Populacja_gpu_dev[index].y + 47)))) - Populacja_gpu_dev[index].x*sin(sqrt(abs(Populacja_gpu_dev[index].x - (Populacja_gpu_dev[index].y + 47)))));
-		else if (KTORA_FUNKCJA == 6)
-			Populacja_gpu_dev[index].fitness = -(418.9829 * 2 - (Populacja_gpu_dev[index].x*sin(sqrt(abs(Populacja_gpu_dev[index].x))) + Populacja_gpu_dev[index].y*sin(sqrt(abs(Populacja_gpu_dev[index].y)))));
+		if (WHICH_FUNCTION == 1)
+			Population_gpu_dev[index].fitness = -(sin(Population_gpu_dev[index].x) + cos(Population_gpu_dev[index].y));
+		else if (WHICH_FUNCTION == 2)
+			Population_gpu_dev[index].fitness = -((Population_gpu_dev[index].x)*(Population_gpu_dev[index].x) + (Population_gpu_dev[index].y)*(Population_gpu_dev[index].y));
+		else if (WHICH_FUNCTION == 3)
+			Population_gpu_dev[index].fitness = -((Population_gpu_dev[index].y)*sin(Population_gpu_dev[index].x) - (Population_gpu_dev[index].x)*cos(Population_gpu_dev[index].y));
+		else if (WHICH_FUNCTION == 4)
+			Population_gpu_dev[index].fitness = -(sin(Population_gpu_dev[index].x + Population_gpu_dev[index].y) + (Population_gpu_dev[index].x - Population_gpu_dev[index].y)*(Population_gpu_dev[index].x - Population_gpu_dev[index].y) - 1.5*Population_gpu_dev[index].x + 2.5*Population_gpu_dev[index].y + 1);
+		else if (WHICH_FUNCTION == 5)
+			Population_gpu_dev[index].fitness = -(-(Population_gpu_dev[index].y + 47)*sin(sqrt(abs((Population_gpu_dev[index].x / 2) + (Population_gpu_dev[index].y + 47)))) - Population_gpu_dev[index].x*sin(sqrt(abs(Population_gpu_dev[index].x - (Population_gpu_dev[index].y + 47)))));
+		else if (WHICH_FUNCTION == 6)
+			Population_gpu_dev[index].fitness = -(418.9829 * 2 - (Population_gpu_dev[index].x*sin(sqrt(abs(Population_gpu_dev[index].x))) + Population_gpu_dev[index].y*sin(sqrt(abs(Population_gpu_dev[index].y)))));
 
 	}
 }
 
-__global__ void Policz_Prawdopodobienstwo(Osobnik* Populacja_gpu_dev)
+__global__ void Count_Probability(Member* Population_gpu_dev)
 {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 
-	if (index < ILE_OSOBNIKOW)
+	if (index < How_many_members)
 	{
-		if(index != (ILE_OSOBNIKOW-1))
-			Populacja_gpu_dev[index].probability = RANK_STEP_DOWN * pow((1 - RANK_STEP_DOWN), index);
-		else if (index == (ILE_OSOBNIKOW - 1))
-			Populacja_gpu_dev[index].probability = pow((1 - RANK_STEP_DOWN), index);
+		if(index != (How_many_members-1))
+			Population_gpu_dev[index].probability = RANK_STEP_DOWN * pow((1 - RANK_STEP_DOWN), index);
+		else if (index == (How_many_members - 1))
+			Population_gpu_dev[index].probability = pow((1 - RANK_STEP_DOWN), index);
 	}
 }
 
-__global__ void Crossover_gpu(Osobnik *Populacja, Osobnik *Populacja_nowa, float *czy_crossover, float *rand_cross_x,float * rand_cross_y, float * rodzic1_rand, float * rodzic2_rand)
+__global__ void Crossover_gpu(Member *Population, Member *Population_new, float *do_crossover, float *rand_cross_x,float * rand_cross_y, float * parent1_rand, float * parent2_rand)
 {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 
-	if (index < ILE_OSOBNIKOW)
+	if (index < How_many_members)
 	{
-		int rodzic1 = 0;
+		int parent1 = 0;
 
-		if (czy_crossover[index] < CROSSOVER_PROBABILITY)
+		if (do_crossover[index] < CROSSOVER_PROBABILITY)
 		{
 			//Losowanie rodzica1
 			float offset = 0.0;
 			//Losowanie ruletkowe
-			for (int i = 0; i < ILE_OSOBNIKOW; i++)
+			for (int i = 0; i < How_many_members; i++)
 			{
-				offset += Populacja[i].probability;
-				if (offset > rodzic1_rand[index])
+				offset += Population[i].probability;
+				if (offset > parent1_rand[index])
 				{
-					rodzic1 = i;
+					parent1 = i;
 					break;
 				}
 			}
 
 			//Losowanie rodzica2
 			offset = 0.0;
-			int rodzic2 = 0;
+			int parent2 = 0;
 
 			//Losowanie ruletkowe
-			for (int i = 0; i < ILE_OSOBNIKOW; i++)
+			for (int i = 0; i < How_many_members; i++)
 			{
-				offset += Populacja[i].probability;
-				if (offset > rodzic2_rand[index])
+				offset += Population[i].probability;
+				if (offset > parent2_rand[index])
 				{
-					rodzic2 = i;
+					parent2 = i;
 					break;
 				}
 			}
 
 			//Posortowanie rodzicow rosnaca - rodzic1 to ten wiekszy, a rodzic2 mniejszy
-			if (Populacja[rodzic1].fitness < Populacja[rodzic2].fitness)
+			if (Population[parent1].fitness < Population[parent2].fitness)
 			{
-				int temp = rodzic1;
-				rodzic1 = rodzic2;
-				rodzic2 = temp;
+				int temp = parent1;
+				parent1 = parent2;
+				parent2 = temp;
 			}
 
-			float x_min = Populacja[rodzic2].x - alpha * (Populacja[rodzic1].x - Populacja[rodzic2].x);
-			float x_max = Populacja[rodzic2].x + alpha * (Populacja[rodzic1].x - Populacja[rodzic2].x);
+			float x_min = Population[parent2].x - alpha * (Population[parent1].x - Population[parent2].x);
+			float x_max = Population[parent2].x + alpha * (Population[parent1].x - Population[parent2].x);
 			
 			float cross_x = x_min + (rand_cross_x[index])*(x_max - x_min);
 
-			if (cross_x > zakres_max_x)
-				cross_x = zakres_max_x;
-			if (cross_x < zakres_min_x)
-				cross_x = zakres_min_x;
+			if (cross_x > range_max_x)
+				cross_x = range_max_x;
+			if (cross_x < range_min_x)
+				cross_x = range_min_x;
 
-			float y_min = Populacja[rodzic2].y - alpha * (Populacja[rodzic1].y - Populacja[rodzic2].y);
-			float y_max = Populacja[rodzic2].y + alpha * (Populacja[rodzic1].y - Populacja[rodzic2].y);
+			float y_min = Population[parent2].y - alpha * (Population[parent1].y - Population[parent2].y);
+			float y_max = Population[parent2].y + alpha * (Population[parent1].y - Population[parent2].y);
 			
 			float cross_y = y_min + (rand_cross_y[index])*(y_max - y_min);
 
-			if (cross_y > zakres_max_y)
-				cross_y = zakres_max_y;
-			if (cross_y < zakres_min_y)
-				cross_y = zakres_min_y;
+			if (cross_y > range_max_y)
+				cross_y = range_max_y;
+			if (cross_y < range_min_y)
+				cross_y = range_min_y;
 
-			Populacja_nowa[index].x = cross_x;
-			Populacja_nowa[index].y = cross_y;
+			Population_new[index].x = cross_x;
+			Population_new[index].y = cross_y;
 
 		}
 		else
 		{
-			Populacja_nowa[index] = Populacja[rodzic1];
+			Population_new[index] = Population[parent1];
 		}
 	}
 }
 
-__global__ void Mutacja_gpu(Osobnik * thrust_pointer_nowy, float * czy_mutacja, float * rand_cross_x, float * rand_cross_y)
+__global__ void Mutation_gpu(Member * thrust_pointer_new, float * do_mutation, float * rand_cross_x, float * rand_cross_y)
 {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 
-	if (index < ILE_OSOBNIKOW)
+	if (index < How_many_members)
 	{
-		if (czy_mutacja[index] < MUTATION_PROBABILITY)
+		if (do_mutation[index] < MUTATION_PROBABILITY)
 		{
-			thrust_pointer_nowy[index].x = thrust_pointer_nowy[index].x + (-Mutation_step_max + (rand_cross_x[index])*(Mutation_step_max - (-Mutation_step_max)));
+			thrust_pointer_new[index].x = thrust_pointer_new[index].x + (-Mutation_step_max + (rand_cross_x[index])*(Mutation_step_max - (-Mutation_step_max)));
 			
-			if (thrust_pointer_nowy[index].x > zakres_max_x)
-				thrust_pointer_nowy[index].x = zakres_max_x;
-			if (thrust_pointer_nowy[index].x < zakres_min_x)
-				thrust_pointer_nowy[index].x= zakres_min_x;
+			if (thrust_pointer_new[index].x > range_max_x)
+				thrust_pointer_new[index].x = range_max_x;
+			if (thrust_pointer_new[index].x < range_min_x)
+				thrust_pointer_new[index].x= range_min_x;
 
 			
-			thrust_pointer_nowy[index].y = thrust_pointer_nowy[index].y + (-Mutation_step_max + (rand_cross_y[index])*(Mutation_step_max - (-Mutation_step_max)));
+			thrust_pointer_new[index].y = thrust_pointer_new[index].y + (-Mutation_step_max + (rand_cross_y[index])*(Mutation_step_max - (-Mutation_step_max)));
 
-			if (thrust_pointer_nowy[index].y > zakres_max_y)
-				thrust_pointer_nowy[index].y = zakres_max_y;
-			if (thrust_pointer_nowy[index].y < zakres_min_y)
-				thrust_pointer_nowy[index].y = zakres_min_y;
+			if (thrust_pointer_new[index].y > range_max_y)
+				thrust_pointer_new[index].y = range_max_y;
+			if (thrust_pointer_new[index].y < range_min_y)
+				thrust_pointer_new[index].y = range_min_y;
 
 
 		}
@@ -257,19 +257,19 @@ int main()
 	duration<double> duration_gpu;
 	duration<double> duration_cpu;
 
-	if (czy_licz_cpu == 1)
+	if (do_run_on_cpu == 1)
 	{
-		ofstream plik;
+		ofstream file;
 
 		cout << "Liczenie na CPU" << endl;
 
-		if (czy_zapisac_do_pliku == 1)
+		if (Do_save_to_file == 1)
 		{
-			plik.open("osobniki.csv", std::ios::trunc);
-			if (plik.good() == true)
+			file.open("osobniki.csv", std::ios::trunc);
+			if (file.good() == true)
 			{
 				cout << "Uzyskano dostep do pliku!" << endl;
-				plik << ILE_OSOBNIKOW << "," << KTORA_FUNKCJA << "\n";
+				file << How_many_members << "," << WHICH_FUNCTION << "\n";
 
 			}
 			else
@@ -290,198 +290,178 @@ int main()
 
 		high_resolution_clock::time_point begin_time_cpu = high_resolution_clock::now();
 
-		vector <Osobnik> Populacja;
-		vector <Osobnik> Populacja_nowa;
+		vector <Member> Population;
+		vector <Member> Population_new;
 
 		//Generowanie populacji
-		Generuj_Populacje(Populacja);
+		Generate_Population(Population);
 
-		cout << "Rozmiar populacji wynosi " << Populacja.size() << endl;
-		cout << "Ilosc generacji wynosi: " << ILE_GENERACJI << endl;
+		cout << "Rozmiar populacji wynosi " << Population.size() << endl;
+		cout << "Ilosc generacji wynosi: " << How_many_generations << endl;
 
-		if (Czy_wyswietl_osobniki_cpu == 1)
-			Wypisz_Populacje(Populacja);
+		if (Do_show_members_cpu == 1)
+			Show_Population(Population);
 
 		//Przebieg wielu pokolen populacji
-		for (int gen = 0; gen < ILE_GENERACJI - 1; gen++)
+		for (int gen = 0; gen < How_many_generations - 1; gen++)
 		{
-			if (Czy_wyswietl_generacje == 1)
+			if (Do_show_generations == 1)
 				cout << endl << "Generacja: " << gen + 1 << endl << endl;;
 
-			Policz_Fitness(Populacja);
+			Count_Fitness(Population);
 
-			if (Czy_wyswietl_osobniki_cpu == 1)
-				Wypisz_Populacje(Populacja);
+			if (Do_show_members_cpu == 1)
+				Show_Population(Population);
 
-			if (czy_zapisac_do_pliku == 1)
+			if (Do_save_to_file == 1)
 			{
-				for (int j = 0; j < Populacja.size(); j++)
+				for (int j = 0; j < Population.size(); j++)
 				{
-					plik << Populacja[j].x << "," << Populacja[j].y << "\n";
+					file << Population[j].x << "," << Population[j].y << "\n";
 				}
 			}
 
 
 			//Sortowanie osobnikow malejaco
-			sort(Populacja.begin(), Populacja.end(), compareByFit);
+			sort(Population.begin(), Population.end(), compareByFit);
 
-			if (Czy_wyswietl_osobniki_cpu == 1)
+			if (Do_show_members_cpu == 1)
 			{
 				cout << endl << "Posortowana populacja:" << endl;
-				Wypisz_Populacje(Populacja);
+				Show_Population(Population);
 			}
 
 			//Przypisywanie osobnikom prawdopodobnienstwa na podstawie rangi wybrania na podstawie rankingu - kolejnosci
-			for (int j = 0; j < Populacja.size(); j++)
+			for (int j = 0; j < Population.size(); j++)
 			{
 
-				if (j != (Populacja.size() - 1))
-					Populacja[j].probability = RANK_STEP_DOWN * pow((1 - RANK_STEP_DOWN), j);
-				else if (j == (Populacja.size() - 1))
-					Populacja[j].probability = pow((1 - RANK_STEP_DOWN), j);
+				if (j != (Population.size() - 1))
+					Population[j].probability = RANK_STEP_DOWN * pow((1 - RANK_STEP_DOWN), j);
+				else if (j == (Population.size() - 1))
+					Population[j].probability = pow((1 - RANK_STEP_DOWN), j);
 			}
 
-			if (Czy_wyswietl_osobniki_cpu == 1)
-				Wypisz_Populacje(Populacja);
-
-			//Niepotrzebne bo prawdopodobnienstwa juz sie sumuja do 100%
-			/*
-			//Wyliczenie sumy wszystkich prawdopodobienstw z rangi
-			float PROB_SUM = 0.0;
-			for (int i = 0; i < Populacja.size(); i++)
-			{
-				PROB_SUM += Populacja[i].probability;
-			}
-			cout << endl << "suma prawd = " << PROB_SUM << endl;
-
-			//Wyliczenie prawdopodobnienstw sumujacych się do 100%
-			for (int i = 0; i < Populacja.size(); i++)
-			{
-				Populacja[i].probability = Populacja[i].probability / PROB_SUM;
-
-				if (Czy_wyswietl_osobniki == 1)
-					cout << "Osobnik " << i + 1 << ": x=" << Populacja[i].x << "  y=" << Populacja[i].y << " fit= " << Populacja[i].fitness << " prawd= " << Populacja[i].probability << endl;
-			}
-			*/
+			if (Do_show_members_cpu == 1)
+				Show_Population(Population);
 
 			//Crossover dla każdego osobnika
-			for (int i = 0; i < Populacja.size(); i++)
+			for (int i = 0; i < Population.size(); i++)
 			{
-				float czy_crossover = ((float)rand()) / (float)RAND_MAX;
-				float czy_mutuj = ((float)rand()) / (float)RAND_MAX;
+				float do_crossover = ((float)rand()) / (float)RAND_MAX;
+				float do_mutation = ((float)rand()) / (float)RAND_MAX;
 
-				if (czy_crossover < CROSSOVER_PROBABILITY)
+				if (do_crossover < CROSSOVER_PROBABILITY)
 				{
-					int rodzic1 = Roulete_Selection(Populacja);
-					int rodzic2 = Roulete_Selection(Populacja);
+					int parent1 = Roulete_Selection(Population);
+					int parent2 = Roulete_Selection(Population);
 
 					//Posortowanie rodzicow rosnaca - rodzic1 to ten wiekszy, a rodzic2 mniejszy
-					if (Populacja[rodzic1].fitness < Populacja[rodzic2].fitness)
+					if (Population[parent1].fitness < Population[parent2].fitness)
 					{
-						int temp = rodzic1;
-						rodzic1 = rodzic2;
-						rodzic2 = temp;
+						int temp = parent1;
+						parent1 = parent2;
+						parent2 = temp;
 
 					}
 
-					float x_min = Populacja[rodzic2].x - alpha * (Populacja[rodzic1].x - Populacja[rodzic2].x);
-					float x_max = Populacja[rodzic2].x + alpha * (Populacja[rodzic1].x - Populacja[rodzic2].x);
+					float x_min = Population[parent2].x - alpha * (Population[parent1].x - Population[parent2].x);
+					float x_max = Population[parent2].x + alpha * (Population[parent1].x - Population[parent2].x);
 					float cross_x = RandomFloat(x_min, x_max);
 
-					if (cross_x > zakres_max_x)
-						cross_x = zakres_max_x;
-					if (cross_x < zakres_min_x)
-						cross_x = zakres_min_x;
+					if (cross_x > range_max_x)
+						cross_x = range_max_x;
+					if (cross_x < range_min_x)
+						cross_x = range_min_x;
 
-					float y_min = Populacja[rodzic2].y - alpha * (Populacja[rodzic1].y - Populacja[rodzic2].y);
-					float y_max = Populacja[rodzic2].y + alpha * (Populacja[rodzic1].y - Populacja[rodzic2].y);
+					float y_min = Population[parent2].y - alpha * (Population[parent1].y - Population[parent2].y);
+					float y_max = Population[parent2].y + alpha * (Population[parent1].y - Population[parent2].y);
 					float cross_y = RandomFloat(y_min, y_max);
 
-					if (cross_y > zakres_max_y)
-						cross_y = zakres_max_y;
-					if (cross_y < zakres_min_y)
-						cross_y = zakres_min_y;
+					if (cross_y > range_max_y)
+						cross_y = range_max_y;
+					if (cross_y < range_min_y)
+						cross_y = range_min_y;
 
-					Osobnik dziecko;
-					dziecko.x = cross_x;
-					dziecko.y = cross_y;
+					Member child;
+					child.x = cross_x;
+					child.y = cross_y;
 					//dziecko.fitness = 0;
 					//dziecko.probability = 0;
 
 					//Mutacja 
-					if (czy_mutuj < MUTATION_PROBABILITY)
-						Mutuj(dziecko);
+					if (do_mutation < MUTATION_PROBABILITY)
+						Mutate(child);
 
-					Populacja_nowa.push_back(dziecko);
+					Population_new.push_back(child);
 
 				}
 				else
 				{
-					int ktory_osobnik_bez_zmian = Roulete_Selection(Populacja);
-					Osobnik osobnik_bez_zmian = Populacja[ktory_osobnik_bez_zmian];
+					int which_member_unchanged = Roulete_Selection(Population);
+					Member unchanged_member = Population[which_member_unchanged];
 
-					if (czy_mutuj < MUTATION_PROBABILITY)
-						Mutuj(osobnik_bez_zmian);
+					if (do_mutation < MUTATION_PROBABILITY)
+						Mutate(unchanged_member);
 
-					Populacja_nowa.push_back(osobnik_bez_zmian);
+					Population_new.push_back(unchanged_member);
 
 				}
 			}
 
 			//Zapisanie nowej generacji 
-			Populacja = Populacja_nowa;
-			Populacja_nowa.clear();
+			Population = Population_new;
+			Population_new.clear();
 
 		}
 
 		//Przebieg ostatniego pokolenia
-		if (Czy_wyswietl_generacje == 1)
-			cout << endl << "Generacja: " << ILE_GENERACJI << endl << endl;;
+		if (Do_show_generations == 1)
+			cout << endl << "Generacja: " << How_many_generations << endl << endl;;
 
-		Policz_Fitness(Populacja);
+		Count_Fitness(Population);
 
-		if (Czy_wyswietl_osobniki_cpu == 1)
-			Wypisz_Populacje(Populacja);
+		if (Do_show_members_cpu == 1)
+			Show_Population(Population);
 
-		if (czy_zapisac_do_pliku == 1)
+		if (Do_save_to_file == 1)
 		{
-			for (int j = 0; j < Populacja.size(); j++)
+			for (int j = 0; j < Population.size(); j++)
 			{
-				plik << Populacja[j].x << "," << Populacja[j].y << "\n";
+				file << Population[j].x << "," << Population[j].y << "\n";
 			}
 		}
 
 
 		//Znajdywanie optimum z ilosci osobnikow uzaleznionych od zmiennej ile_wliczonych
-		sort(Populacja.begin(), Populacja.end(), compareByFit);
+		sort(Population.begin(), Population.end(), compareByFit);
 
 		float x_opt = 0;
 		float y_opt = 0;
 
-		for (int i = 0; i < ile_wliczonych; i++)
+		for (int i = 0; i < how_many_included_average; i++)
 		{
-			x_opt += Populacja[i].x;
-			y_opt += Populacja[i].y;
+			x_opt += Population[i].x;
+			y_opt += Population[i].y;
 		}
 
-		x_opt /= ile_wliczonych;
-		y_opt /= ile_wliczonych;
+		x_opt /= how_many_included_average;
+		y_opt /= how_many_included_average;
 
 		cout << "Optimum w x = " << x_opt << " y = " << y_opt << endl;
 
-		Osobnik osobnik_opt;
-		osobnik_opt.x = x_opt;
-		osobnik_opt.y = y_opt;
-		osobnik_opt.fitness = FitFunction(osobnik_opt);
+		Member member_opt;
+		member_opt.x = x_opt;
+		member_opt.y = y_opt;
+		member_opt.fitness = FitFunction(member_opt);
 
-		cout << "Wartosc funkcji w optimum: " << -osobnik_opt.fitness << endl;
+		cout << "Wartosc funkcji w optimum: " << -member_opt.fitness << endl;
 
-		if (czy_zapisac_do_pliku == 1)
+		if (Do_save_to_file == 1)
 		{
-			plik << x_opt << "," << y_opt << "\n";
-			plik << zakres_min_x << "," << zakres_max_x << "\n" << zakres_min_y << "," << zakres_max_y << "\n";
+			file << x_opt << "," << y_opt << "\n";
+			file << range_min_x << "," << range_max_x << "\n" << range_min_y << "," << range_max_y << "\n";
 
-			if (plik.good() == true)
+			if (file.good() == true)
 			{
 				cout << "Dane pomyslnie zapisane do pliku" << endl;
 			}
@@ -491,7 +471,7 @@ int main()
 				system("PAUSE");
 			}
 
-			plik.close();
+			file.close();
 		}
 
 		high_resolution_clock::time_point end_time_cpu = high_resolution_clock::now();
@@ -512,19 +492,19 @@ int main()
 	//
 	//==============================================================================================================================
 
-	if (czy_licz_gpu == 1)
+	if (do_run_on_gpu == 1)
 	{
 		cout << "Liczenie na GPU" << endl;
 
-		ofstream plik_gpu;
+		ofstream file_gpu;
 
-		if (czy_zapisac_do_pliku == 1)
+		if (Do_save_to_file == 1)
 		{
-			plik_gpu.open("osobniki_gpu.csv", std::ios::trunc);
-			if (plik_gpu.good() == true)
+			file_gpu.open("osobniki_gpu.csv", std::ios::trunc);
+			if (file_gpu.good() == true)
 			{
 				cout << "Uzyskano dostep do pliku!" << endl;
-				plik_gpu << ILE_OSOBNIKOW << "," << KTORA_FUNKCJA << "\n";
+				file_gpu << How_many_members << "," << WHICH_FUNCTION << "\n";
 
 			}
 			else
@@ -536,163 +516,163 @@ int main()
 
 		high_resolution_clock::time_point begin_time_gpu = high_resolution_clock::now();
 
-		Osobnik *Populacja_gpu = new Osobnik[ILE_OSOBNIKOW];
-		Osobnik *Populacja_gpu_dev;
+		Member *Population_gpu = new Member[How_many_members];
+		Member *Population_gpu_dev;
 
-		unsigned long long int Ilosc_blokow = ILE_OSOBNIKOW / THREADS_PER_BLOCK + 1;
-		cout << "Potrzebnych blokow na GPU: " << Ilosc_blokow << endl << endl;
+		unsigned long long int How_many_blocks = How_many_members / THREADS_PER_BLOCK + 1;
+		cout << "Potrzebnych blokow na GPU: " << How_many_blocks << endl << endl;
 
 		//Wypisz populacje
-		if (Czy_wyswietl_osobniki_gpu == 1)
-			Wypisz_Populacje(Populacja_gpu);
+		if (Do_show_members_gpu == 1)
+			Show_Population(Population_gpu);
 
-		int size = ILE_OSOBNIKOW * sizeof(Osobnik);
-		cudaMalloc(&Populacja_gpu_dev, size);
-		cudaMemcpy(Populacja_gpu_dev, Populacja_gpu, size, cudaMemcpyHostToDevice);
-
-		//Generowanie losowych liczb potrzebnych do wygenerowania populacji
-		float *Random_osobniki_x = new float[ILE_OSOBNIKOW];
-		for (int i = 0; i < ILE_OSOBNIKOW; i++)
-			Random_osobniki_x[i] = RandomFloat(zakres_min_x, zakres_max_x);
-
-		float *dev_Random_osobniki_x;
-		cudaMalloc(&dev_Random_osobniki_x, ILE_OSOBNIKOW * sizeof(float));
-		cudaMemcpy(dev_Random_osobniki_x, Random_osobniki_x, ILE_OSOBNIKOW * sizeof(float), cudaMemcpyHostToDevice);
+		int size = How_many_members * sizeof(Member);
+		cudaMalloc(&Population_gpu_dev, size);
+		cudaMemcpy(Population_gpu_dev, Population_gpu, size, cudaMemcpyHostToDevice);
 
 		//Generowanie losowych liczb potrzebnych do wygenerowania populacji
-		float *Random_osobniki_y = new float[ILE_OSOBNIKOW];
-		for (int i = 0; i < ILE_OSOBNIKOW; i++)
-			Random_osobniki_y[i] = RandomFloat(zakres_min_x, zakres_max_x);
+		float *Random_member_x = new float[How_many_members];
+		for (int i = 0; i < How_many_members; i++)
+			Random_member_x[i] = RandomFloat(range_min_x, range_max_x);
 
-		float *dev_Random_osobniki_y;
-		cudaMalloc(&dev_Random_osobniki_y, ILE_OSOBNIKOW * sizeof(float));
-		cudaMemcpy(dev_Random_osobniki_y, Random_osobniki_y, ILE_OSOBNIKOW * sizeof(float), cudaMemcpyHostToDevice);
+		float *dev_Random_member_x;
+		cudaMalloc(&dev_Random_member_x, How_many_members * sizeof(float));
+		cudaMemcpy(dev_Random_member_x, Random_member_x, How_many_members * sizeof(float), cudaMemcpyHostToDevice);
+
+		//Generowanie losowych liczb potrzebnych do wygenerowania populacji
+		float *Random_member_y = new float[How_many_members];
+		for (int i = 0; i < How_many_members; i++)
+			Random_member_y[i] = RandomFloat(range_min_x, range_max_x);
+
+		float *dev_Random_member_y;
+		cudaMalloc(&dev_Random_member_y, How_many_members * sizeof(float));
+		cudaMemcpy(dev_Random_member_y, Random_member_y, How_many_members * sizeof(float), cudaMemcpyHostToDevice);
 
 		//Generowanie populacji
-		Generuj_Populacje_gpu << <Ilosc_blokow, THREADS_PER_BLOCK >> > (Populacja_gpu_dev, dev_Random_osobniki_x, dev_Random_osobniki_y);
+		Generate_Population_gpu << <How_many_blocks, THREADS_PER_BLOCK >> > (Population_gpu_dev, dev_Random_member_x, dev_Random_member_y);
 
-		cudaMemcpy(Populacja_gpu, Populacja_gpu_dev, size, cudaMemcpyDeviceToHost);
+		cudaMemcpy(Population_gpu, Population_gpu_dev, size, cudaMemcpyDeviceToHost);
 
-		cudaFree(dev_Random_osobniki_x);
-		cudaFree(dev_Random_osobniki_y);
+		cudaFree(dev_Random_member_x);
+		cudaFree(dev_Random_member_y);
 
-		delete[]Random_osobniki_x;
-		delete[]Random_osobniki_y;
+		delete[]Random_member_x;
+		delete[]Random_member_y;
 
-		if (Czy_wyswietl_generacje == 1)
+		if (Do_show_generations == 1)
 			cout << endl << "Generacja: 1" << endl << endl;
 
-		if (Czy_wyswietl_osobniki_gpu == 1)
-			Wypisz_Populacje(Populacja_gpu);
+		if (Do_show_members_gpu == 1)
+			Show_Population(Population_gpu);
 
 		//Tworzenie wektorow thrust do przechowywania populacji na host i device
-		thrust::host_vector<Osobnik> host_thrust_osobnik(ILE_OSOBNIKOW);
-		thrust::device_vector<Osobnik> device_thrust_osobnik(host_thrust_osobnik);
-		Osobnik* thrust_pointer = thrust::raw_pointer_cast(&device_thrust_osobnik[0]);	//Wskaznik na miejsce w pamieci na device gdzie przechowywana jest populacja, czyli na poczatek wektoru
+		thrust::host_vector<Member> host_thrust_member(How_many_members);
+		thrust::device_vector<Member> device_thrust_member(host_thrust_member);
+		Member* thrust_pointer = thrust::raw_pointer_cast(&device_thrust_member[0]);	//Wskaznik na miejsce w pamieci na device gdzie przechowywana jest populacja, czyli na poczatek wektoru
 
 
-		for (int i = 0; i < ILE_OSOBNIKOW; i++)
+		for (int i = 0; i < How_many_members; i++)
 		{
-			host_thrust_osobnik[i] = Populacja_gpu[i];
+			host_thrust_member[i] = Population_gpu[i];
 		}
 
-		if (czy_zapisac_do_pliku == 1)
+		if (Do_save_to_file == 1)
 		{
-			for (int i = 0; i < ILE_OSOBNIKOW; i++)
+			for (int i = 0; i < How_many_members; i++)
 			{
-				plik_gpu << host_thrust_osobnik[i].x << "," << host_thrust_osobnik[i].y << "\n";
+				file_gpu << host_thrust_member[i].x << "," << host_thrust_member[i].y << "\n";
 			}
 		}
 
 		//Wektory w ktorych beda przechowywane losowe liczby potrzebne do operacji crossover
-		thrust::host_vector<float> czy_crossover_gpu(ILE_OSOBNIKOW);
-		thrust::host_vector<float> cross_x_gpu(ILE_OSOBNIKOW);
-		thrust::host_vector<float> cross_y_gpu(ILE_OSOBNIKOW);
-		thrust::host_vector<float> rodzic1_rand(ILE_OSOBNIKOW);
-		thrust::host_vector<float> rodzic2_rand(ILE_OSOBNIKOW);
+		thrust::host_vector<float> do_crossover_gpu(How_many_members);
+		thrust::host_vector<float> cross_x_gpu(How_many_members);
+		thrust::host_vector<float> cross_y_gpu(How_many_members);
+		thrust::host_vector<float> parent1_rand(How_many_members);
+		thrust::host_vector<float> parent2_rand(How_many_members);
 
 
 		//Wektory w ktorych beda przechowywane losowe liczby potrzebne do operacji mutacji
-		thrust::host_vector<float> czy_mutacja_gpu(ILE_OSOBNIKOW);
-		thrust::host_vector<float> mutation_step_x_gpu(ILE_OSOBNIKOW);
-		thrust::host_vector<float> mutation_step_y_gpu(ILE_OSOBNIKOW);
+		thrust::host_vector<float> do_mutation_gpu(How_many_members);
+		thrust::host_vector<float> mutation_step_x_gpu(How_many_members);
+		thrust::host_vector<float> mutation_step_y_gpu(How_many_members);
 
 
 		//Przebieg wielu pokolen populacji
-		for (int gen = 0; gen < ILE_GENERACJI - 1; gen++)
+		for (int gen = 0; gen < How_many_generations - 1; gen++)
 		{
-			if (Czy_wyswietl_generacje == 1)
+			if (Do_show_generations == 1)
 				cout << endl << "Generacja: " << gen + +2 << endl << endl;
 
 			//Kopiowanie osobnikow z hosta na device
-			device_thrust_osobnik = host_thrust_osobnik;
+			device_thrust_member = host_thrust_member;
 
-			if (Czy_wyswietl_osobniki_gpu == 1)
+			if (Do_show_members_gpu == 1)
 			{
 				cout << "Nie policzone" << endl;
-				Osobnik* Pointer_do_wypisywania = thrust::raw_pointer_cast(&host_thrust_osobnik[0]);
-				Wypisz_Populacje(Pointer_do_wypisywania);
+				Member* Pointer_to_show_members = thrust::raw_pointer_cast(&host_thrust_member[0]);
+				Show_Population(Pointer_to_show_members);
 			}
 
 			//Liczenie fitness dla kazdego osobnika w populacji
-			Policz_Fitness_gpu << < Ilosc_blokow, THREADS_PER_BLOCK >> > (thrust_pointer);
+			Count_Fitness_gpu << < How_many_blocks, THREADS_PER_BLOCK >> > (thrust_pointer);
 
-			if (Czy_wyswietl_osobniki_gpu == 1)
+			if (Do_show_members_gpu == 1)
 			{
-				host_thrust_osobnik = device_thrust_osobnik;		//Kopiowanie populacji z device na hosta
+				host_thrust_member = device_thrust_member;		//Kopiowanie populacji z device na hosta
 
 				cout << "Policzone" << endl;
-				Osobnik* Pointer_do_wypisywania = thrust::raw_pointer_cast(&host_thrust_osobnik[0]);
-				Wypisz_Populacje(Pointer_do_wypisywania);
+				Member* Pointer_to_show_members = thrust::raw_pointer_cast(&host_thrust_member[0]);
+				Show_Population(Pointer_to_show_members);
 			}
 
 
 			//Sortowanie osobnikow w populacji malejaco wedlug fitnessu
-			thrust::sort(device_thrust_osobnik.begin(), device_thrust_osobnik.end());
+			thrust::sort(device_thrust_member.begin(), device_thrust_member.end());
 
-			if (Czy_wyswietl_osobniki_gpu == 1)
+			if (Do_show_members_gpu == 1)
 			{
-				host_thrust_osobnik = device_thrust_osobnik;
+				host_thrust_member = device_thrust_member;
 
 				cout << endl << "Posortowane: " << endl;
-				Osobnik* Pointer_do_wypisywania = thrust::raw_pointer_cast(&host_thrust_osobnik[0]);
-				Wypisz_Populacje(Pointer_do_wypisywania);
+				Member* Pointer_to_show_members = thrust::raw_pointer_cast(&host_thrust_member[0]);
+				Show_Population(Pointer_to_show_members);
 			}
 
 
 			//Przypisywanie osobnikom prawdopodobnienstwa na podstawie rangi wybrania na podstawie rankingu - kolejnosci
-			Policz_Prawdopodobienstwo << < Ilosc_blokow, THREADS_PER_BLOCK >> > (thrust_pointer);
+			Count_Probability << < How_many_blocks, THREADS_PER_BLOCK >> > (thrust_pointer);
 
-			host_thrust_osobnik = device_thrust_osobnik;
+			host_thrust_member = device_thrust_member;
 
-			if (Czy_wyswietl_osobniki_gpu == 1)
+			if (Do_show_members_gpu == 1)
 			{
 				cout << "z Policzonym prawdp" << endl;
-				Osobnik* Pointer_do_wypisywania = thrust::raw_pointer_cast(&host_thrust_osobnik[0]);
-				Wypisz_Populacje(Pointer_do_wypisywania);
+				Member* Pointer_to_show_members = thrust::raw_pointer_cast(&host_thrust_member[0]);
+				Show_Population(Pointer_to_show_members);
 			}
 
 
 			//Crossover
 
 			//Wektory na device w ktorych bedzie przechowywana nowa populacja juz po crossover
-			thrust::device_vector<Osobnik> device_thrust_osobnik_nowy(host_thrust_osobnik);
-			Osobnik* thrust_pointer_nowy = thrust::raw_pointer_cast(&device_thrust_osobnik_nowy[0]);
+			thrust::device_vector<Member> device_thrust_member_new(host_thrust_member);
+			Member* thrust_pointer_new = thrust::raw_pointer_cast(&device_thrust_member_new[0]);
 
 			//Generowanie liczb losowych potrzebnych w kernelach
-			for (int i = 0; i < ILE_OSOBNIKOW; i++)
+			for (int i = 0; i < How_many_members; i++)
 			{
-				czy_crossover_gpu[i] = ((float)rand()) / (float)RAND_MAX;
-				if (czy_crossover_gpu[i] < CROSSOVER_PROBABILITY)
+				do_crossover_gpu[i] = ((float)rand()) / (float)RAND_MAX;
+				if (do_crossover_gpu[i] < CROSSOVER_PROBABILITY)
 				{
 					cross_x_gpu[i] = ((float)rand()) / (float)RAND_MAX;
 					cross_y_gpu[i] = ((float)rand()) / (float)RAND_MAX;
-					rodzic1_rand[i] = ((float)rand()) / (float)RAND_MAX;
-					rodzic2_rand[i] = ((float)rand()) / (float)RAND_MAX;
+					parent1_rand[i] = ((float)rand()) / (float)RAND_MAX;
+					parent2_rand[i] = ((float)rand()) / (float)RAND_MAX;
 				}
 
-				czy_mutacja_gpu[i] = ((float)rand()) / (float)RAND_MAX;
-				if (czy_mutacja_gpu[i] < MUTATION_PROBABILITY)
+				do_mutation_gpu[i] = ((float)rand()) / (float)RAND_MAX;
+				if (do_mutation_gpu[i] < MUTATION_PROBABILITY)
 				{
 					mutation_step_x_gpu[i] = ((float)rand()) / (float)RAND_MAX;
 					mutation_step_y_gpu[i] = ((float)rand()) / (float)RAND_MAX;
@@ -700,46 +680,46 @@ int main()
 			}
 
 			//Kopie wektorów losowych na device
-			thrust::device_vector<float> device_czy_crossover_gpu(czy_crossover_gpu);
+			thrust::device_vector<float> device_do_crossover_gpu(do_crossover_gpu);
 			thrust::device_vector<float> device_cross_x_gpu(cross_x_gpu);
 			thrust::device_vector<float> device_cross_y_gpu(cross_y_gpu);
-			thrust::device_vector<float> rodzic1_rand_gpu(rodzic1_rand);
-			thrust::device_vector<float> rodzic2_rand_gpu(rodzic2_rand);
+			thrust::device_vector<float> parent1_rand_gpu(parent1_rand);
+			thrust::device_vector<float> parent2_rand_gpu(parent2_rand);
 
-			thrust::device_vector<float> device_czy_mutacja_gpu(czy_mutacja_gpu);
+			thrust::device_vector<float> device_do_mutation_gpu(do_mutation_gpu);
 			thrust::device_vector<float> device_mutation_step_x_gpu(mutation_step_x_gpu);
 			thrust::device_vector<float> device_mutation_step_y_gpu(mutation_step_y_gpu);
 
 			//Wskaźniki na kopie wektorów losowych na device
-			float* device_czy_crossover_gpu_pointer = thrust::raw_pointer_cast(&device_czy_crossover_gpu[0]);
+			float* device_do_crossover_gpu_pointer = thrust::raw_pointer_cast(&device_do_crossover_gpu[0]);
 			float* device_cross_x_gpu_pointer = thrust::raw_pointer_cast(&device_cross_x_gpu[0]);
 			float* device_cross_y_gpu_pointer = thrust::raw_pointer_cast(&device_cross_y_gpu[0]);
-			float* rodzic1_rand_gpu_pointer = thrust::raw_pointer_cast(&rodzic1_rand_gpu[0]);
-			float* rodzic2_rand_gpu_pointer = thrust::raw_pointer_cast(&rodzic2_rand_gpu[0]);
+			float* parent1_rand_gpu_pointer = thrust::raw_pointer_cast(&parent1_rand_gpu[0]);
+			float* parent2_rand_gpu_pointer = thrust::raw_pointer_cast(&parent2_rand_gpu[0]);
 
-			float* device_czy_mutacja_gpu_pointer = thrust::raw_pointer_cast(&device_czy_mutacja_gpu[0]);
+			float* device_do_mutation_gpu_pointer = thrust::raw_pointer_cast(&device_do_mutation_gpu[0]);
 			float* device_mutation_step_x_gpu_pointer = thrust::raw_pointer_cast(&device_mutation_step_x_gpu[0]);
 			float* device_mutation_step_y_gpu_pointer = thrust::raw_pointer_cast(&device_mutation_step_y_gpu[0]);
 
 			//Operacja crossover
-			Crossover_gpu << < Ilosc_blokow, THREADS_PER_BLOCK >> > (thrust_pointer, thrust_pointer_nowy, device_czy_crossover_gpu_pointer, device_cross_x_gpu_pointer, device_cross_y_gpu_pointer, rodzic1_rand_gpu_pointer, rodzic2_rand_gpu_pointer);
+			Crossover_gpu << < How_many_blocks, THREADS_PER_BLOCK >> > (thrust_pointer, thrust_pointer_new, device_do_crossover_gpu_pointer, device_cross_x_gpu_pointer, device_cross_y_gpu_pointer, parent1_rand_gpu_pointer, parent2_rand_gpu_pointer);
 
 			//Operacja mutacji
-			Mutacja_gpu << < Ilosc_blokow, THREADS_PER_BLOCK >> > (thrust_pointer_nowy, device_czy_mutacja_gpu_pointer, device_mutation_step_x_gpu_pointer, device_mutation_step_y_gpu_pointer);
+			Mutation_gpu << < How_many_blocks, THREADS_PER_BLOCK >> > (thrust_pointer_new, device_do_mutation_gpu_pointer, device_mutation_step_x_gpu_pointer, device_mutation_step_y_gpu_pointer);
 
-			host_thrust_osobnik = device_thrust_osobnik_nowy;
+			host_thrust_member = device_thrust_member_new;
 
-			if (Czy_wyswietl_osobniki_gpu == 1)
+			if (Do_show_members_gpu == 1)
 			{
 				cout << "Nowe osobniki" << endl;
-				Osobnik* Pointer_do_wypisywania = thrust::raw_pointer_cast(&host_thrust_osobnik[0]);
-				Wypisz_Populacje(Pointer_do_wypisywania);
+				Member* Pointer_to_show_members = thrust::raw_pointer_cast(&host_thrust_member[0]);
+				Show_Population(Pointer_to_show_members);
 			}
-			if (czy_zapisac_do_pliku == 1)
+			if (Do_save_to_file == 1)
 			{
-				for (int i = 0; i < ILE_OSOBNIKOW; i++)
+				for (int i = 0; i < How_many_members; i++)
 				{
-					plik_gpu << host_thrust_osobnik[i].x << "," << host_thrust_osobnik[i].y << "\n";
+					file_gpu << host_thrust_member[i].x << "," << host_thrust_member[i].y << "\n";
 				}
 			}
 
@@ -747,39 +727,39 @@ int main()
 
 		//Znajdywanie optimum
 
-		device_thrust_osobnik = host_thrust_osobnik;
-		Policz_Fitness_gpu << < Ilosc_blokow, THREADS_PER_BLOCK >> > (thrust_pointer);
-		thrust::sort(device_thrust_osobnik.begin(), device_thrust_osobnik.end());	//Sortowanie
-		host_thrust_osobnik = device_thrust_osobnik;
+		device_thrust_member = host_thrust_member;
+		Count_Fitness_gpu << < How_many_blocks, THREADS_PER_BLOCK >> > (thrust_pointer);
+		thrust::sort(device_thrust_member.begin(), device_thrust_member.end());	//Sortowanie
+		host_thrust_member = device_thrust_member;
 
 		float x_opt_gpu  = 0;
 		float y_opt_gpu = 0;
 
-		for (int i = 0; i < ile_wliczonych; i++)
+		for (int i = 0; i < how_many_included_average; i++)
 		{
-			x_opt_gpu += host_thrust_osobnik[i].x;
-			y_opt_gpu += host_thrust_osobnik[i].y;
+			x_opt_gpu += host_thrust_member[i].x;
+			y_opt_gpu += host_thrust_member[i].y;
 		}
-		x_opt_gpu /= ile_wliczonych;
-		y_opt_gpu /= ile_wliczonych;
+		x_opt_gpu /= how_many_included_average;
+		y_opt_gpu /= how_many_included_average;
 
 		cout << "Optimum w x = " << x_opt_gpu << " y = " << y_opt_gpu << endl;
 
-		Osobnik osobnik_opt_gpu;
-		osobnik_opt_gpu.x = x_opt_gpu;
-		osobnik_opt_gpu.y = y_opt_gpu;
-		osobnik_opt_gpu.fitness = FitFunction(osobnik_opt_gpu);
+		Member Member_opt_gpu;
+		Member_opt_gpu.x = x_opt_gpu;
+		Member_opt_gpu.y = y_opt_gpu;
+		Member_opt_gpu.fitness = FitFunction(Member_opt_gpu);
 
-		cout << "Wartosc funkcji w optimum: " << -osobnik_opt_gpu.fitness << endl;
+		cout << "Wartosc funkcji w optimum: " << -Member_opt_gpu.fitness << endl;
 
 
-		if (czy_zapisac_do_pliku == 1)
+		if (Do_save_to_file == 1)
 		{
-			plik_gpu << x_opt_gpu << "," << y_opt_gpu << "\n";
-			plik_gpu << zakres_min_x << "," << zakres_max_x << "\n" << zakres_min_y << "," << zakres_max_y << "\n";
+			file_gpu << x_opt_gpu << "," << y_opt_gpu << "\n";
+			file_gpu << range_min_x << "," << range_max_x << "\n" << range_min_y << "," << range_max_y << "\n";
 
 
-			if (plik_gpu.good() == true)
+			if (file_gpu.good() == true)
 			{
 				cout << "Dane pomyslnie zapisane do pliku" << endl;
 			}
@@ -789,11 +769,11 @@ int main()
 				system("PAUSE");
 			}
 
-			plik_gpu.close();
+			file_gpu.close();
 		}
 
-		cudaFree(Populacja_gpu_dev);
-		delete[] Populacja_gpu;
+		cudaFree(Population_gpu_dev);
+		delete[] Population_gpu;
 
 		high_resolution_clock::time_point end_time_gpu = high_resolution_clock::now();
 		duration_gpu = duration_cast<duration<double>>(end_time_gpu - begin_time_gpu);
@@ -802,7 +782,7 @@ int main()
 
 	}
 
-	if(czy_licz_cpu==1 && czy_licz_gpu==1)
+	if(do_run_on_cpu==1 && do_run_on_gpu==1)
 		cout << "Speedup: " << duration_cpu.count() / duration_gpu.count() << endl;
 
 	system("pause");
@@ -819,71 +799,71 @@ int main()
 	//==============================================================================================================================
 
 
-void Generuj_Populacje(vector <Osobnik> &Populacja)
+void Generate_Population(vector <Member> &Population)
 {
-	for (int i = 0; i < ILE_OSOBNIKOW; i++)
+	for (int i = 0; i < How_many_members; i++)
 	{
-		float x_rand = RandomFloat(zakres_min_x, zakres_max_x);
-		float y_rand = RandomFloat(zakres_min_y, zakres_max_y);
+		float x_rand = RandomFloat(range_min_x, range_max_x);
+		float y_rand = RandomFloat(range_min_y, range_max_y);
 
-		Osobnik osobnik;
-		osobnik.x = x_rand;
-		osobnik.y = y_rand;
+		Member member;
+		member.x = x_rand;
+		member.y = y_rand;
 		//osobnik.fitness = 0;
 		//osobnik.probability = 0;
 
-		Populacja.push_back(osobnik);
+		Population.push_back(member);
 	}
 
 	return;
 }
 
 
-float FitFunction(Osobnik osobnik)
+float FitFunction(Member member)
 {
 	float fittness = 0;
-	if (KTORA_FUNKCJA == 1)
-		fittness = -(sin(osobnik.x) + cos(osobnik.y));
-	else if (KTORA_FUNKCJA == 2)
-		fittness = -((osobnik.x)*(osobnik.x) + (osobnik.y)*(osobnik.y));
-	else if (KTORA_FUNKCJA == 3)
-		fittness = -((osobnik.y)*sin(osobnik.x) - (osobnik.x)*cos(osobnik.y));
-	else if (KTORA_FUNKCJA == 4)
-		fittness = -(sin(osobnik.x + osobnik.y) + (osobnik.x - osobnik.y)*(osobnik.x - osobnik.y) - 1.5*osobnik.x + 2.5*osobnik.y + 1);
-	else if (KTORA_FUNKCJA == 5)
-		fittness = -(-(osobnik.y + 47)*sin(sqrt(abs((osobnik.x / 2) + (osobnik.y + 47)))) - osobnik.x*sin(sqrt(abs(osobnik.x - (osobnik.y + 47)))));
-	else if (KTORA_FUNKCJA == 6)
-		fittness = -(418.9829 * 2 - (osobnik.x*sin(sqrt(abs(osobnik.x))) + osobnik.y*sin(sqrt(abs(osobnik.y)))));
+	if (WHICH_FUNCTION == 1)
+		fittness = -(sin(member.x) + cos(member.y));
+	else if (WHICH_FUNCTION == 2)
+		fittness = -((member.x)*(member.x) + (member.y)*(member.y));
+	else if (WHICH_FUNCTION == 3)
+		fittness = -((member.y)*sin(member.x) - (member.x)*cos(member.y));
+	else if (WHICH_FUNCTION == 4)
+		fittness = -(sin(member.x + member.y) + (member.x - member.y)*(member.x - member.y) - 1.5*member.x + 2.5*member.y + 1);
+	else if (WHICH_FUNCTION == 5)
+		fittness = -(-(member.y + 47)*sin(sqrt(abs((member.x / 2) + (member.y + 47)))) - member.x*sin(sqrt(abs(member.x - (member.y + 47)))));
+	else if (WHICH_FUNCTION == 6)
+		fittness = -(418.9829 * 2 - (member.x*sin(sqrt(abs(member.x))) + member.y*sin(sqrt(abs(member.y)))));
 	return fittness;
 }
 
 
-bool compareByFit(const Osobnik &a, const Osobnik &b)
+bool compareByFit(const Member &a, const Member &b)
 {
 	return a.fitness > b.fitness;
 }
 
-bool compareByFit_gpu(const Osobnik &a, const Osobnik &b)
+bool compareByFit_gpu(const Member &a, const Member &b)
 {
 	return a.fitness > b.fitness;
 }
 
-void Wypisz_Populacje(vector <Osobnik> Populacja)
+void Show_Population(vector <Member> Population)
 {
 	cout << endl;
-	for (int j = 0; j < Populacja.size(); j++)
+	for (int j = 0; j < Population.size(); j++)
 	{
-		cout << "Osobnik " << j + 1 << ": x=" << Populacja[j].x << "  y=" << Populacja[j].y << " fit= " << Populacja[j].fitness <<" prob: "<<Populacja[j].probability<< endl;
+		cout << "Osobnik " << j + 1 << ": x=" << Population[j].x << "  y=" << Population[j].y << " fit= " << Population[j].fitness <<" prob: "<<Population[j].probability<< endl;
 	}
 	cout << endl;
 }
 
-void Wypisz_Populacje(Osobnik *Populacja)
+void Show_Population(Member *Population)
 {
 	cout << endl;
-	for (int j = 0; j < ILE_OSOBNIKOW; j++)
+	for (int j = 0; j < How_many_members; j++)
 	{
-		cout << "Osobnik " << j + 1 << ": x=" << Populacja[j].x << "  y=" << Populacja[j].y << " fit= " << Populacja[j].fitness << " prob: " << Populacja[j].probability << endl;
+		cout << "Osobnik " << j + 1 << ": x=" << Population[j].x << "  y=" << Population[j].y << " fit= " << Population[j].fitness << " prob: " << Population[j].probability << endl;
 	}
 	cout << endl;
 }
@@ -896,160 +876,54 @@ float RandomFloat(float a, float b)
 	return a + r;
 }
 
-int Roulete_Selection(vector <Osobnik> Populacja)
+int Roulete_Selection(vector <Member> Population)
 {
 	float offset = 0.0;
 	float rand_cross = ((float)rand()) / (float)RAND_MAX;
-	int rodzic = 0;
+	int parent = 0;
 
 	//Losowanie ruletkowe
-	for (int j = 0; j < Populacja.size(); j++)
+	for (int j = 0; j < Population.size(); j++)
 	{
-		offset += Populacja[j].probability;
+		offset += Population[j].probability;
 		if (offset > rand_cross)
 		{
-			rodzic = j;
+			parent = j;
 			break;
 		}
 	}
 
-	return rodzic;
+	return parent;
 }
-/*
-void Mutuj(Osobnik &osobnik)
-{
-	int znak1 = rand() % 2;
-	int znak2 = rand() % 2;
 
-	if (Czy_wyswietl_osobniki_cpu == 1)
-		cout << "znak= " << znak1 << " znak2 = " << znak2 << endl;
-
-	float Mutation_step_x = RandomFloat(Mutation_step_min, Mutation_step_max);
-	float Mutation_step_y = RandomFloat(Mutation_step_min, Mutation_step_max);
-
-	if (znak1 < 1)
-	{
-		if (znak2 < 1)
-		{
-			osobnik.x = osobnik.x - Mutation_step_x;
-			if (osobnik.x > zakres_max_x)
-				osobnik.x = zakres_max_x;
-			if (osobnik.x < zakres_min_x)
-				osobnik.x = zakres_min_x;
-
-			osobnik.y = osobnik.y - Mutation_step_y;
-
-			if (osobnik.y > zakres_max_y)
-				osobnik.y = zakres_max_y;
-			if (osobnik.y < zakres_min_y)
-				osobnik.y = zakres_min_y;
-		}
-		if (znak2 >= 1)
-		{
-			osobnik.x = osobnik.x - Mutation_step_x;
-			if (osobnik.x > zakres_max_x)
-				osobnik.x = zakres_max_x;
-			if (osobnik.x < zakres_min_x)
-				osobnik.x = zakres_min_x;
-
-
-			osobnik.y = osobnik.y + Mutation_step_y;
-
-			if (osobnik.y > zakres_max_y)
-				osobnik.y = zakres_max_y;
-			if (osobnik.y < zakres_min_y)
-				osobnik.y = zakres_min_y;
-		}
-	}
-
-	if (znak1 >= 1)
-	{
-		if (znak2 < 1)
-		{
-			osobnik.x = osobnik.x + Mutation_step_x;
-
-			if (osobnik.x > zakres_max_x)
-				osobnik.x = zakres_max_x;
-			if (osobnik.x < zakres_min_x)
-				osobnik.x = zakres_min_x;
-
-			osobnik.y = osobnik.y - Mutation_step_y;
-
-			if (osobnik.y > zakres_max_y)
-				osobnik.y = zakres_max_y;
-			if (osobnik.y < zakres_min_y)
-				osobnik.y = zakres_min_y;
-		}
-
-		if (znak2 >= 1)
-		{
-			osobnik.x = osobnik.x + Mutation_step_x;
-
-			if (osobnik.x > zakres_max_x)
-				osobnik.x = zakres_max_x;
-			if (osobnik.x < zakres_min_x)
-				osobnik.x = zakres_min_x;
-
-			osobnik.y = osobnik.y + Mutation_step_y;
-
-			if (osobnik.y > zakres_max_y)
-				osobnik.y = zakres_max_y;
-			if (osobnik.y < zakres_min_y)
-				osobnik.y = zakres_min_y;
-		}
-	}
-
-	return;
-}
-*/
-void Mutuj(Osobnik &osobnik)
+void Mutate(Member &member)
 {
 
 	float Mutation_step_x = RandomFloat(-Mutation_step_max, Mutation_step_max);
-
-	/*
-	if (abs(Mutation_step_x) < Mutation_step_min)
-	{
-		if (Mutation_step_x < 0)
-			Mutation_step_x = -Mutation_step_min;
-		else
-			Mutation_step_x = Mutation_step_min;
-	}
-	*/
 	float Mutation_step_y = RandomFloat(-Mutation_step_max, Mutation_step_max);
 
-	/*
-	if (abs(Mutation_step_y) < Mutation_step_min)
-	{
-		if (Mutation_step_y < 0)
-			Mutation_step_y = -Mutation_step_min;
-		else
-			Mutation_step_y = Mutation_step_min;
-	}
-	*/
+	member.x = member.x + Mutation_step_x;
+	if (member.x > range_max_x)
+		member.x = range_max_x;
+	if (member.x < range_min_x)
+		member.x = range_min_x;
 
-	osobnik.x = osobnik.x + Mutation_step_x;
-	if (osobnik.x > zakres_max_x)
-		osobnik.x = zakres_max_x;
-	if (osobnik.x < zakres_min_x)
-		osobnik.x = zakres_min_x;
-
-	osobnik.y = osobnik.y + Mutation_step_y;
-	if (osobnik.y > zakres_max_y)
-		osobnik.y = zakres_max_y;
-	if (osobnik.y < zakres_min_y)
-		osobnik.y = zakres_min_y;
+	member.y = member.y + Mutation_step_y;
+	if (member.y > range_max_y)
+		member.y = range_max_y;
+	if (member.y < range_min_y)
+		member.y = range_min_y;
 
 
 	return;
 }
 
-void Policz_Fitness(vector <Osobnik> &Populacja)
+void Count_Fitness(vector <Member> &Population)
 {
 	//Obliczanie fitness dla każdego osobnika
-	for (int j = 0; j < Populacja.size(); j++)
+	for (int j = 0; j < Population.size(); j++)
 	{
-		Populacja[j].fitness = FitFunction(Populacja[j]);
+		Population[j].fitness = FitFunction(Population[j]);
 	}
 
 	return;
