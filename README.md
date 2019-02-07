@@ -6,7 +6,7 @@ Algorithm is based on:
 - Roulette selection
 - Blend Crossover for Real-Coded Genetic Algorithms
 
-To use algorithm:  
+To run algorithm:  
   kernel.cu
 
 There are 6 build-in functions to test algorithm, they are described at the beggining of kernel.cu. To change selected function adjust parameter 'WHICH_FUNCTION'.
