@@ -41,7 +41,7 @@
 using namespace std;
 using namespace std::chrono;
 
-//Parametry do dostosowania
+//Parameters to adjust algorithm
 #define range_min_x (float) -10
 #define range_max_x (float) 10
 #define range_min_y (float) -10
@@ -149,9 +149,9 @@ __global__ void Crossover_gpu(Member *Population, Member *Population_new, float 
 
 		if (do_crossover[index] < CROSSOVER_PROBABILITY)
 		{
-			//Losowanie rodzica1
+			//Choosing parent 1
 			float offset = 0.0;
-			//Losowanie ruletkowe
+			//Roulette selection
 			for (int i = 0; i < How_many_members; i++)
 			{
 				offset += Population[i].probability;
@@ -162,11 +162,11 @@ __global__ void Crossover_gpu(Member *Population, Member *Population_new, float 
 				}
 			}
 
-			//Losowanie rodzica2
+			//Choosing parent 2
 			offset = 0.0;
 			int parent2 = 0;
 
-			//Losowanie ruletkowe
+			//Roulette selection
 			for (int i = 0; i < How_many_members; i++)
 			{
 				offset += Population[i].probability;
@@ -177,7 +177,7 @@ __global__ void Crossover_gpu(Member *Population, Member *Population_new, float 
 				}
 			}
 
-			//Posortowanie rodzicow rosnaca - rodzic1 to ten wiekszy, a rodzic2 mniejszy
+			//Sorting parents ascending - at the end parent1 has bigger value of fitness, and parent2 has smaller.
 			if (Population[parent1].fitness < Population[parent2].fitness)
 			{
 				int temp = parent1;
@@ -252,7 +252,7 @@ int main()
 {
 	srand(time(NULL));
 
-	cout << "Bartosz Bielinski - Algorytm Genetyczny" << endl;
+	cout << "Bartosz Bielinski - Genetic Algorithm" << endl;
 
 	duration<double> duration_gpu;
 	duration<double> duration_cpu;
@@ -261,20 +261,20 @@ int main()
 	{
 		ofstream file;
 
-		cout << "Liczenie na CPU" << endl;
+		cout << "Processing on CPU" << endl;
 
 		if (Do_save_to_file == 1)
 		{
 			file.open("osobniki.csv", std::ios::trunc);
 			if (file.good() == true)
 			{
-				cout << "Uzyskano dostep do pliku!" << endl;
+				cout << "The file was accessed" << endl;
 				file << How_many_members << "," << WHICH_FUNCTION << "\n";
 
 			}
 			else
 			{
-				cout << "Dostep do pliku zostal zabroniony!" << std::endl;
+				cout << "Access to the file was forbidden!" << std::endl;
 				system("PAUSE");
 			}
 		}
@@ -282,7 +282,7 @@ int main()
 		//==============================================================================================================================
 		//
 		//
-		// Algorytm Genetyczny na CPU
+		// Genetic Algorithm on CPU
 		//
 		//
 		//==============================================================================================================================
@@ -293,20 +293,20 @@ int main()
 		vector <Member> Population;
 		vector <Member> Population_new;
 
-		//Generowanie populacji
+		//Generating population
 		Generate_Population(Population);
 
-		cout << "Rozmiar populacji wynosi " << Population.size() << endl;
-		cout << "Ilosc generacji wynosi: " << How_many_generations << endl;
+		cout << "Size of population is " << Population.size() << endl;
+		cout << "Amount of generations is: " << How_many_generations << endl;
 
 		if (Do_show_members_cpu == 1)
 			Show_Population(Population);
 
-		//Przebieg wielu pokolen populacji
+		//Course of many generations of population
 		for (int gen = 0; gen < How_many_generations - 1; gen++)
 		{
 			if (Do_show_generations == 1)
-				cout << endl << "Generacja: " << gen + 1 << endl << endl;;
+				cout << endl << "Generation: " << gen + 1 << endl << endl;;
 
 			Count_Fitness(Population);
 
@@ -322,16 +322,16 @@ int main()
 			}
 
 
-			//Sortowanie osobnikow malejaco
+			//Sorting memebers descending
 			sort(Population.begin(), Population.end(), compareByFit);
 
 			if (Do_show_members_cpu == 1)
 			{
-				cout << endl << "Posortowana populacja:" << endl;
+				cout << endl << "Sorted population:" << endl;
 				Show_Population(Population);
 			}
 
-			//Przypisywanie osobnikom prawdopodobnienstwa na podstawie rangi wybrania na podstawie rankingu - kolejnosci
+			//Giving members a probability based on rank in rank base selection 
 			for (int j = 0; j < Population.size(); j++)
 			{
 
@@ -344,7 +344,7 @@ int main()
 			if (Do_show_members_cpu == 1)
 				Show_Population(Population);
 
-			//Crossover dla każdego osobnika
+			//Crossover for every member
 			for (int i = 0; i < Population.size(); i++)
 			{
 				float do_crossover = ((float)rand()) / (float)RAND_MAX;
@@ -355,7 +355,7 @@ int main()
 					int parent1 = Roulete_Selection(Population);
 					int parent2 = Roulete_Selection(Population);
 
-					//Posortowanie rodzicow rosnaca - rodzic1 to ten wiekszy, a rodzic2 mniejszy
+					//Sorting parents ascending - at the end parent1 has bigger value of fitness, and parent2 has smaller.
 					if (Population[parent1].fitness < Population[parent2].fitness)
 					{
 						int temp = parent1;
@@ -385,10 +385,9 @@ int main()
 					Member child;
 					child.x = cross_x;
 					child.y = cross_y;
-					//dziecko.fitness = 0;
-					//dziecko.probability = 0;
 
-					//Mutacja 
+
+					//Mutation 
 					if (do_mutation < MUTATION_PROBABILITY)
 						Mutate(child);
 
@@ -408,13 +407,13 @@ int main()
 				}
 			}
 
-			//Zapisanie nowej generacji 
+			//Saving new population
 			Population = Population_new;
 			Population_new.clear();
 
 		}
 
-		//Przebieg ostatniego pokolenia
+		//Course of last generation
 		if (Do_show_generations == 1)
 			cout << endl << "Generacja: " << How_many_generations << endl << endl;;
 
@@ -432,7 +431,7 @@ int main()
 		}
 
 
-		//Znajdywanie optimum z ilosci osobnikow uzaleznionych od zmiennej ile_wliczonych
+		//Finding minimum based on the first best members (amount of included members can be adjusted with parameter 'how_many_included_average)
 		sort(Population.begin(), Population.end(), compareByFit);
 
 		float x_opt = 0;
@@ -447,14 +446,14 @@ int main()
 		x_opt /= how_many_included_average;
 		y_opt /= how_many_included_average;
 
-		cout << "Optimum w x = " << x_opt << " y = " << y_opt << endl;
+		cout << "Optimum in x = " << x_opt << " y = " << y_opt << endl;
 
 		Member member_opt;
 		member_opt.x = x_opt;
 		member_opt.y = y_opt;
 		member_opt.fitness = FitFunction(member_opt);
 
-		cout << "Wartosc funkcji w optimum: " << -member_opt.fitness << endl;
+		cout << "Value of in optimum optimum: " << -member_opt.fitness << endl;
 
 		if (Do_save_to_file == 1)
 		{
@@ -463,11 +462,11 @@ int main()
 
 			if (file.good() == true)
 			{
-				cout << "Dane pomyslnie zapisane do pliku" << endl;
+				cout << "Data successfully saved to file" << endl;
 			}
 			else
 			{
-				cout << "Dostep do pliku zostal zabroniony!" << std::endl;
+				cout << "Access to the file was forbidden!" << std::endl;
 				system("PAUSE");
 			}
 
@@ -478,7 +477,7 @@ int main()
 
 		duration_cpu = duration_cast<duration<double>>(end_time_cpu - begin_time_cpu);
 
-		cout << "Czas liczenia na CPU: " << duration_cpu.count() << endl << endl;
+		cout << "Processing time on CPU: " << duration_cpu.count() << endl << endl;
 
 		system("pause");
 
@@ -487,14 +486,14 @@ int main()
 	//==============================================================================================================================
 	//
 	//
-	// Algorytm Genetyczny na GPU
+	// Genetic algorithm on GPU
 	//
 	//
 	//==============================================================================================================================
 
 	if (do_run_on_gpu == 1)
 	{
-		cout << "Liczenie na GPU" << endl;
+		cout << "Processing on GPU" << endl;
 
 		ofstream file_gpu;
 
@@ -503,13 +502,13 @@ int main()
 			file_gpu.open("osobniki_gpu.csv", std::ios::trunc);
 			if (file_gpu.good() == true)
 			{
-				cout << "Uzyskano dostep do pliku!" << endl;
+				cout << "You have access to the file!" << endl;
 				file_gpu << How_many_members << "," << WHICH_FUNCTION << "\n";
 
 			}
 			else
 			{
-				cout << "Dostep do pliku zostal zabroniony!" << std::endl;
+				cout << "Access to the file was forbidden!" << std::endl;
 				system("PAUSE");
 			}
 		}
@@ -520,9 +519,9 @@ int main()
 		Member *Population_gpu_dev;
 
 		unsigned long long int How_many_blocks = How_many_members / THREADS_PER_BLOCK + 1;
-		cout << "Potrzebnych blokow na GPU: " << How_many_blocks << endl << endl;
+		cout << "Amount of blocks need on GPU: " << How_many_blocks << endl << endl;
 
-		//Wypisz populacje
+		//Show population
 		if (Do_show_members_gpu == 1)
 			Show_Population(Population_gpu);
 
@@ -530,7 +529,7 @@ int main()
 		cudaMalloc(&Population_gpu_dev, size);
 		cudaMemcpy(Population_gpu_dev, Population_gpu, size, cudaMemcpyHostToDevice);
 
-		//Generowanie losowych liczb potrzebnych do wygenerowania populacji
+		//Generating random numbers needed in generating generations
 		float *Random_member_x = new float[How_many_members];
 		for (int i = 0; i < How_many_members; i++)
 			Random_member_x[i] = RandomFloat(range_min_x, range_max_x);
@@ -539,7 +538,7 @@ int main()
 		cudaMalloc(&dev_Random_member_x, How_many_members * sizeof(float));
 		cudaMemcpy(dev_Random_member_x, Random_member_x, How_many_members * sizeof(float), cudaMemcpyHostToDevice);
 
-		//Generowanie losowych liczb potrzebnych do wygenerowania populacji
+		//Generating random numbers needed in generating generations
 		float *Random_member_y = new float[How_many_members];
 		for (int i = 0; i < How_many_members; i++)
 			Random_member_y[i] = RandomFloat(range_min_x, range_max_x);
@@ -548,7 +547,7 @@ int main()
 		cudaMalloc(&dev_Random_member_y, How_many_members * sizeof(float));
 		cudaMemcpy(dev_Random_member_y, Random_member_y, How_many_members * sizeof(float), cudaMemcpyHostToDevice);
 
-		//Generowanie populacji
+		//Generating population
 		Generate_Population_gpu << <How_many_blocks, THREADS_PER_BLOCK >> > (Population_gpu_dev, dev_Random_member_x, dev_Random_member_y);
 
 		cudaMemcpy(Population_gpu, Population_gpu_dev, size, cudaMemcpyDeviceToHost);
@@ -560,15 +559,15 @@ int main()
 		delete[]Random_member_y;
 
 		if (Do_show_generations == 1)
-			cout << endl << "Generacja: 1" << endl << endl;
+			cout << endl << "Generation: 1" << endl << endl;
 
 		if (Do_show_members_gpu == 1)
 			Show_Population(Population_gpu);
 
-		//Tworzenie wektorow thrust do przechowywania populacji na host i device
+		//Creating thrus vector to store population on host and device
 		thrust::host_vector<Member> host_thrust_member(How_many_members);
 		thrust::device_vector<Member> device_thrust_member(host_thrust_member);
-		Member* thrust_pointer = thrust::raw_pointer_cast(&device_thrust_member[0]);	//Wskaznik na miejsce w pamieci na device gdzie przechowywana jest populacja, czyli na poczatek wektoru
+		Member* thrust_pointer = thrust::raw_pointer_cast(&device_thrust_member[0]);	//Pointer on the beggining of device memory where population is stored
 
 
 		for (int i = 0; i < How_many_members; i++)
@@ -584,70 +583,69 @@ int main()
 			}
 		}
 
-		//Wektory w ktorych beda przechowywane losowe liczby potrzebne do operacji crossover
+		//Vectors in which are stored random numbers needed in process of crossover
 		thrust::host_vector<float> do_crossover_gpu(How_many_members);
 		thrust::host_vector<float> cross_x_gpu(How_many_members);
 		thrust::host_vector<float> cross_y_gpu(How_many_members);
 		thrust::host_vector<float> parent1_rand(How_many_members);
 		thrust::host_vector<float> parent2_rand(How_many_members);
 
-
-		//Wektory w ktorych beda przechowywane losowe liczby potrzebne do operacji mutacji
+		//Vectors in which are stored random numbers needed in process of mutation
 		thrust::host_vector<float> do_mutation_gpu(How_many_members);
 		thrust::host_vector<float> mutation_step_x_gpu(How_many_members);
 		thrust::host_vector<float> mutation_step_y_gpu(How_many_members);
 
 
-		//Przebieg wielu pokolen populacji
+		//Course of many generations of population
 		for (int gen = 0; gen < How_many_generations - 1; gen++)
 		{
 			if (Do_show_generations == 1)
-				cout << endl << "Generacja: " << gen + +2 << endl << endl;
+				cout << endl << "Generation: " << gen + +2 << endl << endl;
 
-			//Kopiowanie osobnikow z hosta na device
+			//Copying members from host to device
 			device_thrust_member = host_thrust_member;
 
 			if (Do_show_members_gpu == 1)
 			{
-				cout << "Nie policzone" << endl;
+				cout << "Preprocessed members" << endl;
 				Member* Pointer_to_show_members = thrust::raw_pointer_cast(&host_thrust_member[0]);
 				Show_Population(Pointer_to_show_members);
 			}
 
-			//Liczenie fitness dla kazdego osobnika w populacji
+			//Counting fitnesss for every member in population 
 			Count_Fitness_gpu << < How_many_blocks, THREADS_PER_BLOCK >> > (thrust_pointer);
 
 			if (Do_show_members_gpu == 1)
 			{
-				host_thrust_member = device_thrust_member;		//Kopiowanie populacji z device na hosta
+				host_thrust_member = device_thrust_member;			//Copying members from device to host
 
-				cout << "Policzone" << endl;
+				cout << "Processed memebers" << endl;
 				Member* Pointer_to_show_members = thrust::raw_pointer_cast(&host_thrust_member[0]);
 				Show_Population(Pointer_to_show_members);
 			}
 
 
-			//Sortowanie osobnikow w populacji malejaco wedlug fitnessu
+			//Sorting members in population descending based on fitness
 			thrust::sort(device_thrust_member.begin(), device_thrust_member.end());
 
 			if (Do_show_members_gpu == 1)
 			{
 				host_thrust_member = device_thrust_member;
 
-				cout << endl << "Posortowane: " << endl;
+				cout << endl << "Sorted population: " << endl;
 				Member* Pointer_to_show_members = thrust::raw_pointer_cast(&host_thrust_member[0]);
 				Show_Population(Pointer_to_show_members);
 			}
 
 
-			//Przypisywanie osobnikom prawdopodobnienstwa na podstawie rangi wybrania na podstawie rankingu - kolejnosci
+			//Giving members a probability based on rank in rank base selection 
 			Count_Probability << < How_many_blocks, THREADS_PER_BLOCK >> > (thrust_pointer);
 
 			host_thrust_member = device_thrust_member;
 
 			if (Do_show_members_gpu == 1)
 			{
-				cout << "z Policzonym prawdp" << endl;
+				cout << "With counted probablility" << endl;
 				Member* Pointer_to_show_members = thrust::raw_pointer_cast(&host_thrust_member[0]);
 				Show_Population(Pointer_to_show_members);
 			}
@@ -655,11 +653,11 @@ int main()
 
 			//Crossover
 
-			//Wektory na device w ktorych bedzie przechowywana nowa populacja juz po crossover
+			//Vectors on device in which new population after crossover will be stored 
 			thrust::device_vector<Member> device_thrust_member_new(host_thrust_member);
 			Member* thrust_pointer_new = thrust::raw_pointer_cast(&device_thrust_member_new[0]);
 
-			//Generowanie liczb losowych potrzebnych w kernelach
+			//Generating random numbers needed in kernels
 			for (int i = 0; i < How_many_members; i++)
 			{
 				do_crossover_gpu[i] = ((float)rand()) / (float)RAND_MAX;
@@ -679,7 +677,7 @@ int main()
 				}
 			}
 
-			//Kopie wektorów losowych na device
+			//Copies of random vectors on device 
 			thrust::device_vector<float> device_do_crossover_gpu(do_crossover_gpu);
 			thrust::device_vector<float> device_cross_x_gpu(cross_x_gpu);
 			thrust::device_vector<float> device_cross_y_gpu(cross_y_gpu);
@@ -690,7 +688,7 @@ int main()
 			thrust::device_vector<float> device_mutation_step_x_gpu(mutation_step_x_gpu);
 			thrust::device_vector<float> device_mutation_step_y_gpu(mutation_step_y_gpu);
 
-			//Wskaźniki na kopie wektorów losowych na device
+			//Pointers on copies of random vectors on device 
 			float* device_do_crossover_gpu_pointer = thrust::raw_pointer_cast(&device_do_crossover_gpu[0]);
 			float* device_cross_x_gpu_pointer = thrust::raw_pointer_cast(&device_cross_x_gpu[0]);
 			float* device_cross_y_gpu_pointer = thrust::raw_pointer_cast(&device_cross_y_gpu[0]);
@@ -701,17 +699,17 @@ int main()
 			float* device_mutation_step_x_gpu_pointer = thrust::raw_pointer_cast(&device_mutation_step_x_gpu[0]);
 			float* device_mutation_step_y_gpu_pointer = thrust::raw_pointer_cast(&device_mutation_step_y_gpu[0]);
 
-			//Operacja crossover
+			//Crossover operation
 			Crossover_gpu << < How_many_blocks, THREADS_PER_BLOCK >> > (thrust_pointer, thrust_pointer_new, device_do_crossover_gpu_pointer, device_cross_x_gpu_pointer, device_cross_y_gpu_pointer, parent1_rand_gpu_pointer, parent2_rand_gpu_pointer);
 
-			//Operacja mutacji
+			//Mutation operation
 			Mutation_gpu << < How_many_blocks, THREADS_PER_BLOCK >> > (thrust_pointer_new, device_do_mutation_gpu_pointer, device_mutation_step_x_gpu_pointer, device_mutation_step_y_gpu_pointer);
 
 			host_thrust_member = device_thrust_member_new;
 
 			if (Do_show_members_gpu == 1)
 			{
-				cout << "Nowe osobniki" << endl;
+				cout << "New memebers" << endl;
 				Member* Pointer_to_show_members = thrust::raw_pointer_cast(&host_thrust_member[0]);
 				Show_Population(Pointer_to_show_members);
 			}
@@ -725,11 +723,11 @@ int main()
 
 		}
 
-		//Znajdywanie optimum
+		//Finding optimum
 
 		device_thrust_member = host_thrust_member;
 		Count_Fitness_gpu << < How_many_blocks, THREADS_PER_BLOCK >> > (thrust_pointer);
-		thrust::sort(device_thrust_member.begin(), device_thrust_member.end());	//Sortowanie
+		thrust::sort(device_thrust_member.begin(), device_thrust_member.end());	//Sorting
 		host_thrust_member = device_thrust_member;
 
 		float x_opt_gpu  = 0;
@@ -743,14 +741,14 @@ int main()
 		x_opt_gpu /= how_many_included_average;
 		y_opt_gpu /= how_many_included_average;
 
-		cout << "Optimum w x = " << x_opt_gpu << " y = " << y_opt_gpu << endl;
+		cout << "Optimum in x = " << x_opt_gpu << " y = " << y_opt_gpu << endl;
 
 		Member Member_opt_gpu;
 		Member_opt_gpu.x = x_opt_gpu;
 		Member_opt_gpu.y = y_opt_gpu;
 		Member_opt_gpu.fitness = FitFunction(Member_opt_gpu);
 
-		cout << "Wartosc funkcji w optimum: " << -Member_opt_gpu.fitness << endl;
+		cout << "Value of funtion in optimum: " << -Member_opt_gpu.fitness << endl;
 
 
 		if (Do_save_to_file == 1)
@@ -761,11 +759,11 @@ int main()
 
 			if (file_gpu.good() == true)
 			{
-				cout << "Dane pomyslnie zapisane do pliku" << endl;
+				cout << "Data successfully saved to file" << endl;
 			}
 			else
 			{
-				cout << "Dostep do pliku zostal zabroniony!" << std::endl;
+				cout << "Access to the file was forbidden!" << std::endl;
 				system("PAUSE");
 			}
 
@@ -778,7 +776,7 @@ int main()
 		high_resolution_clock::time_point end_time_gpu = high_resolution_clock::now();
 		duration_gpu = duration_cast<duration<double>>(end_time_gpu - begin_time_gpu);
 
-		cout << "Czas liczenia na GPU " << duration_gpu.count() << endl << endl;
+		cout << "Processing time on GPU " << duration_gpu.count() << endl << endl;
 
 	}
 
@@ -793,7 +791,7 @@ int main()
 	//==============================================================================================================================
 	//
 	//
-	// Funkcje zewnętrzne
+	// External functions
 	//
 	//
 	//==============================================================================================================================
@@ -809,8 +807,7 @@ void Generate_Population(vector <Member> &Population)
 		Member member;
 		member.x = x_rand;
 		member.y = y_rand;
-		//osobnik.fitness = 0;
-		//osobnik.probability = 0;
+
 
 		Population.push_back(member);
 	}
@@ -853,7 +850,7 @@ void Show_Population(vector <Member> Population)
 	cout << endl;
 	for (int j = 0; j < Population.size(); j++)
 	{
-		cout << "Osobnik " << j + 1 << ": x=" << Population[j].x << "  y=" << Population[j].y << " fit= " << Population[j].fitness <<" prob: "<<Population[j].probability<< endl;
+		cout << "Member " << j + 1 << ": x=" << Population[j].x << "  y=" << Population[j].y << " fit= " << Population[j].fitness <<" prob: "<<Population[j].probability<< endl;
 	}
 	cout << endl;
 }
@@ -863,7 +860,7 @@ void Show_Population(Member *Population)
 	cout << endl;
 	for (int j = 0; j < How_many_members; j++)
 	{
-		cout << "Osobnik " << j + 1 << ": x=" << Population[j].x << "  y=" << Population[j].y << " fit= " << Population[j].fitness << " prob: " << Population[j].probability << endl;
+		cout << "Member " << j + 1 << ": x=" << Population[j].x << "  y=" << Population[j].y << " fit= " << Population[j].fitness << " prob: " << Population[j].probability << endl;
 	}
 	cout << endl;
 }
@@ -882,7 +879,7 @@ int Roulete_Selection(vector <Member> Population)
 	float rand_cross = ((float)rand()) / (float)RAND_MAX;
 	int parent = 0;
 
-	//Losowanie ruletkowe
+	//Roulette selection
 	for (int j = 0; j < Population.size(); j++)
 	{
 		offset += Population[j].probability;
@@ -920,7 +917,7 @@ void Mutate(Member &member)
 
 void Count_Fitness(vector <Member> &Population)
 {
-	//Obliczanie fitness dla każdego osobnika
+	//Counting fitness for every member 
 	for (int j = 0; j < Population.size(); j++)
 	{
 		Population[j].fitness = FitFunction(Population[j]);
