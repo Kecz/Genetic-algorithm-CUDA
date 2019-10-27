@@ -179,7 +179,7 @@ __global__ void Crossover_gpu(Member *Population, Member *Population_new, float 
 				}
 			}
 
-			//Sorting parents ascending - at the end parent1 has bigger value of fitness, and parent2 has smaller.
+			//Sorting parents descending - at the end parent1 has bigger value of fitness, and parent2 has smaller.
 			if (Population[parent1].fitness < Population[parent2].fitness)
 			{
 				int temp = parent1;
@@ -358,7 +358,7 @@ int main()
 					int parent1 = Roulete_Selection(Population);
 					int parent2 = Roulete_Selection(Population);
 
-					//Sorting parents ascending - at the end parent1 has bigger value of fitness, and parent2 has smaller.
+					//Sorting parents descending - at the end parent1 has bigger value of fitness, and parent2 has smaller.
 					if (Population[parent1].fitness < Population[parent2].fitness)
 					{
 						int temp = parent1;
