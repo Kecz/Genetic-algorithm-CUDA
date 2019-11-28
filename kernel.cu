@@ -1,4 +1,4 @@
-//Bartosz Bielinski & Piotr Winkler - Genetic Algorithm
+//Bartosz Bielinski - Genetic Algorithm
 
 /*
 	Description of algorithm:
