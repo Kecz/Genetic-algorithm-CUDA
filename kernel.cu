@@ -1,4 +1,4 @@
-//Bartosz Bielinski - Genetic Algorithm
+//Bartosz Bielinski & Piotr Winkler - Genetic Algorithm
 
 /*
 	Description of algorithm:
@@ -7,9 +7,9 @@
 	- Members are sorted on basis of value of fitness and then each member is getting probability based on "rank based selection", which can be adjusted with parameters 'RANK_STEP_DOWN' and 'CROSSOVER_PROBABILITY'
 	- Roulette selection algorithm is used to choose random members
 	- To crossover process the "Blend Crossover" for Real-Coded Genetic Algorithms is used and it can be adjusted with parameter 'alpha' 
-	- In case of mutation, the mutated member is moved along x and y axis by radom value from range
+	- In case of mutation, the mutated member is moved along x and y axis by radom value from range 
 	<-Mutation_step_max * Mutation_annealing ^ generation_number, Mutation_step_max * Mutation_annealing ^ generation_number>, parameter to adjust: 'MUTATION_PROBABILITY', 'Mutation_step_max', 'Mutation_annealing'
-	- Optimum is calculated as an average from a few best members, the amount of members included in average can be adjusted with parameter 'how_many_included_average' (default: 1)
+	- Optimum is calculated as an average from a few best members, the amount of members included in average can be adjusted with parameter 'how_many_included_average' (default: 1) 
 	- Each generation is saved to csv file, for CPU to file 'osobniki.csv', and for GPU to 'osobniki_gpu.csv'.
 */
 /*
@@ -28,7 +28,7 @@
 #include <stdio.h>
 #include <cmath>
 #include <cstdio>
-#include <stdlib.h>
+#include <stdlib.h>    
 #include <vector>
 #include <time.h>       /* time */
 #include <algorithm>    // std::sort
@@ -43,11 +43,11 @@ using namespace std;
 using namespace std::chrono;
 
 //Parameters to adjust algorithm
-#define range_min_x (float) -512
-#define range_max_x (float) 512
-#define range_min_y (float) -512
-#define range_max_y (float) 512
-#define WHICH_FUNCTION 5
+#define range_min_x (float) -500
+#define range_max_x (float) 500
+#define range_min_y (float) -500
+#define range_max_y (float) 500
+#define WHICH_FUNCTION 6
 #define Do_show_members_cpu 0
 #define Do_show_members_gpu 0
 #define Do_show_generations 1
@@ -56,15 +56,15 @@ using namespace std::chrono;
 #define do_run_on_gpu 1
 #define how_many_included_average 1
 
-#define How_many_members 1000
-#define How_many_generations 100
+#define How_many_members 5000
+#define How_many_generations 3
 //#define Mutation_step_min (float)0.1
 #define Mutation_step_max (float)1000
-#define Mutation_annealing (float) 0.98
+#define Mutation_annealing (float) 0.96
 #define alpha (float)0.1
 #define RANK_STEP_DOWN (float)0.3
 #define CROSSOVER_PROBABILITY (float)0.7
-#define MUTATION_PROBABILITY (float)0.1
+#define MUTATION_PROBABILITY (float)0.05
 
 #define BLOCKS_PER_KERNEL 1000
 #define THREADS_PER_BLOCK 1024
@@ -189,7 +189,7 @@ __global__ void Crossover_gpu(Member *Population, Member *Population_new, float 
 
 			float x_min = Population[parent2].x - alpha * (Population[parent1].x - Population[parent2].x);
 			float x_max = Population[parent2].x + alpha * (Population[parent1].x - Population[parent2].x);
-
+			
 			float cross_x = x_min + (rand_cross_x[index])*(x_max - x_min);
 
 			if (cross_x > range_max_x)
@@ -199,7 +199,7 @@ __global__ void Crossover_gpu(Member *Population, Member *Population_new, float 
 
 			float y_min = Population[parent2].y - alpha * (Population[parent1].y - Population[parent2].y);
 			float y_max = Population[parent2].y + alpha * (Population[parent1].y - Population[parent2].y);
-
+			
 			float cross_y = y_min + (rand_cross_y[index])*(y_max - y_min);
 
 			if (cross_y > range_max_y)
@@ -226,20 +226,38 @@ __global__ void Mutation_gpu(Member * thrust_pointer_new, float * do_mutation, f
 	{
 		if (do_mutation[index] < MUTATION_PROBABILITY)
 		{
-			thrust_pointer_new[index].x = thrust_pointer_new[index].x + (-mutation_step_maximum[index] + (rand_cross_x[index])*(mutation_step_maximum[index] - (-mutation_step_maximum[index])));
+			float mutation_value_x = (-mutation_step_maximum[index] + (rand_cross_x[index]) * (mutation_step_maximum[index] - (-mutation_step_maximum[index])));
+			//thrust_pointer_new[index].x = thrust_pointer_new[index].x + (-mutation_step_maximum[index] + (rand_cross_x[index])*(mutation_step_maximum[index] - (-mutation_step_maximum[index])));
+			
+			if (thrust_pointer_new[index].x + mutation_value_x > range_max_x)
+			{
+				thrust_pointer_new[index].x = range_max_x - (mutation_value_x - (range_max_x- thrust_pointer_new[index].x));
+			}
+			else if (thrust_pointer_new[index].x + mutation_value_x < range_min_x)
+			{
+				thrust_pointer_new[index].x = range_min_x - (mutation_value_x - (range_min_x - thrust_pointer_new[index].x));
+			}
+			else
+			{
+				thrust_pointer_new[index].x = thrust_pointer_new[index].x + mutation_value_x;
+			}
 
-			if (thrust_pointer_new[index].x > range_max_x)
-				thrust_pointer_new[index].x = range_max_x;
-			if (thrust_pointer_new[index].x < range_min_x)
-				thrust_pointer_new[index].x= range_min_x;
+			
+			//thrust_pointer_new[index].y = thrust_pointer_new[index].y + (-mutation_step_maximum[index] + (rand_cross_y[index])*(mutation_step_maximum[index] - (-mutation_step_maximum[index])));
+			float mutation_value_y = (-mutation_step_maximum[index] + (rand_cross_y[index]) * (mutation_step_maximum[index] - (-mutation_step_maximum[index])));
 
-
-			thrust_pointer_new[index].y = thrust_pointer_new[index].y + (-mutation_step_maximum[index] + (rand_cross_y[index])*(mutation_step_maximum[index] - (-mutation_step_maximum[index])));
-
-			if (thrust_pointer_new[index].y > range_max_y)
-				thrust_pointer_new[index].y = range_max_y;
-			if (thrust_pointer_new[index].y < range_min_y)
-				thrust_pointer_new[index].y = range_min_y;
+			if (thrust_pointer_new[index].y + mutation_value_y > range_max_y)
+			{
+				thrust_pointer_new[index].y = range_max_y - (mutation_value_y - (range_max_y - thrust_pointer_new[index].y));
+			}
+			else if (thrust_pointer_new[index].y + mutation_value_y < range_min_y)
+			{
+				thrust_pointer_new[index].y = range_min_y - (mutation_value_y - (range_min_y - thrust_pointer_new[index].y));
+			}
+			else
+			{
+				thrust_pointer_new[index].y = thrust_pointer_new[index].y + mutation_value_y;
+			}
 
 
 		}
@@ -254,7 +272,7 @@ int main()
 {
 	srand(time(NULL));
 
-	cout << "Bartosz Bielinski - Genetic Algorithm" << endl;
+	cout << "Bartosz Bielinski & Piotr Winkler - Genetic Algorithm" << endl;
 
 	duration<double> duration_gpu;
 	duration<double> duration_cpu;
@@ -334,7 +352,7 @@ int main()
 				Show_Population(Population);
 			}
 
-			//Giving members a probability based on rank in rank base selection
+			//Giving members a probability based on rank in rank base selection 
 			for (int j = 0; j < Population.size(); j++)
 			{
 
@@ -368,7 +386,7 @@ int main()
 					}
 
 					float x_min = Population[parent2].x - alpha * (Population[parent1].x - Population[parent2].x);
-					float x_max = Population[parent2].x + alpha * (Population[parent1].x - Population[parent2].x);
+					float x_max = Population[parent1].x + alpha * (Population[parent1].x - Population[parent2].x);
 					float cross_x = RandomFloat(x_min, x_max);
 
 					if (cross_x > range_max_x)
@@ -377,7 +395,7 @@ int main()
 						cross_x = range_min_x;
 
 					float y_min = Population[parent2].y - alpha * (Population[parent1].y - Population[parent2].y);
-					float y_max = Population[parent2].y + alpha * (Population[parent1].y - Population[parent2].y);
+					float y_max = Population[parent1].y + alpha * (Population[parent1].y - Population[parent2].y);
 					float cross_y = RandomFloat(y_min, y_max);
 
 					if (cross_y > range_max_y)
@@ -390,7 +408,7 @@ int main()
 					child.y = cross_y;
 
 
-					//Mutation
+					//Mutation 
 					if (do_mutation < MUTATION_PROBABILITY)
 						Mutate(child, current_mutation_step_max);
 
@@ -415,7 +433,7 @@ int main()
 			Population = Population_new;
 			Population_new.clear();
 
-			// Mutation max step annealing
+			// Mutation max step annealing 
 			current_mutation_step_max = Mutation_step_max * pow(Mutation_annealing, gen);
 
 		}
@@ -571,7 +589,7 @@ int main()
 		if (Do_show_members_gpu == 1)
 			Show_Population(Population_gpu);
 
-		//Creating thrus vector to store population on host and device
+		//Creating thrust vector to store population on host and device
 		thrust::host_vector<Member> host_thrust_member(How_many_members);
 		thrust::device_vector<Member> device_thrust_member(host_thrust_member);
 		Member* thrust_pointer = thrust::raw_pointer_cast(&device_thrust_member[0]);	//Pointer on the beggining of device memory where population is stored
@@ -625,7 +643,7 @@ int main()
 				Show_Population(Pointer_to_show_members);
 			}
 
-			//Counting fitnesss for every member in population
+			//Counting fitnesss for every member in population 
 			Count_Fitness_gpu << < How_many_blocks, THREADS_PER_BLOCK >> > (thrust_pointer);
 
 			if (Do_show_members_gpu == 1)
@@ -651,7 +669,7 @@ int main()
 			}
 
 
-			//Giving members a probability based on rank in rank base selection
+			//Giving members a probability based on rank in rank base selection 
 			Count_Probability << < How_many_blocks, THREADS_PER_BLOCK >> > (thrust_pointer);
 
 			host_thrust_member = device_thrust_member;
@@ -666,7 +684,7 @@ int main()
 
 			//Crossover
 
-			//Vectors on device in which new population after crossover will be stored
+			//Vectors on device in which new population after crossover will be stored 
 			thrust::device_vector<Member> device_thrust_member_new(host_thrust_member);
 			Member* thrust_pointer_new = thrust::raw_pointer_cast(&device_thrust_member_new[0]);
 
@@ -691,7 +709,7 @@ int main()
 				}
 			}
 
-			//Copies of random vectors on device
+			//Copies of random vectors on device 
 			thrust::device_vector<float> device_do_crossover_gpu(do_crossover_gpu);
 			thrust::device_vector<float> device_cross_x_gpu(cross_x_gpu);
 			thrust::device_vector<float> device_cross_y_gpu(cross_y_gpu);
@@ -703,7 +721,7 @@ int main()
 			thrust::device_vector<float> device_mutation_step_y_gpu(mutation_step_y_gpu);
 			thrust::device_vector<float> device_mutation_step_maximum(mutation_max_step_host);
 
-			//Pointers on copies of random vectors on device
+			//Pointers on copies of random vectors on device 
 			float* device_do_crossover_gpu_pointer = thrust::raw_pointer_cast(&device_do_crossover_gpu[0]);
 			float* device_cross_x_gpu_pointer = thrust::raw_pointer_cast(&device_cross_x_gpu[0]);
 			float* device_cross_y_gpu_pointer = thrust::raw_pointer_cast(&device_cross_y_gpu[0]);
@@ -915,18 +933,33 @@ void Mutate(Member &member, float mutation_step_maximum)
 	float Mutation_step_x = RandomFloat(-mutation_step_maximum, mutation_step_maximum);
 	float Mutation_step_y = RandomFloat(-mutation_step_maximum, mutation_step_maximum);
 
-	member.x = member.x + Mutation_step_x;
-	if (member.x > range_max_x)
-		member.x = range_max_x;
-	if (member.x < range_min_x)
-		member.x = range_min_x;
+	// member.x = member.x + Mutation_step_x;
+	if (member.x + Mutation_step_x > range_max_x)
+	{
+		member.x = range_max_x - (Mutation_step_x - (range_max_x - member.x));
+	}
+	else if (member.x + Mutation_step_x < range_min_x)
+	{
+		member.x = range_min_x - (Mutation_step_x - (range_min_x - member.x));
+	}
+	else 
+	{
+		member.x = member.x + Mutation_step_x;
+	}
 
-	member.y = member.y + Mutation_step_y;
-	if (member.y > range_max_y)
-		member.y = range_max_y;
-	if (member.y < range_min_y)
-		member.y = range_min_y;
-
+	// member.y = member.y + Mutation_step_y;
+	if (member.y + Mutation_step_y > range_max_y)
+	{
+		member.y = range_max_y - (Mutation_step_y - (range_max_y - member.y));
+	}
+	else if (member.y + Mutation_step_y < range_min_y)
+	{
+		member.y = range_min_y - (Mutation_step_y - (range_min_y - member.y));
+	}
+	else
+	{
+		member.y = member.y + Mutation_step_y;
+	}
 
 	return;
 }
@@ -941,3 +974,4 @@ void Count_Fitness(vector <Member> &Population)
 
 	return;
 }
+
