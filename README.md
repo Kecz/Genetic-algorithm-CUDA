@@ -20,5 +20,3 @@ Running kernel.cu shows in console value of finded optimum and creates csv file 
 ```
 This script provides 2D and 3D visualisations of each generation on selected surface.
 Selected function, min range and max range of searching are saved in csv file and read automatically in plot_data.m but you may need to change the resolution of plotted functions with parameter 'resolution'.  
-
-**Date of creation:** December 2018
