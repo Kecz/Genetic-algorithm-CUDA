@@ -23,8 +23,8 @@
 */
 
 #include <iostream>
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
 #include <stdio.h>
 #include <cmath>
 #include <cstdio>
@@ -36,8 +36,8 @@
 #include <chrono>
 #include <cuda.h>
 #include <thrust/device_ptr.h>
-#include <thrust\device_vector.h>
-#include <thrust\sort.h>
+#include <thrust/device_vector.h>
+#include <thrust/sort.h>
 
 using namespace std;
 using namespace std::chrono;
@@ -78,7 +78,7 @@ struct Member {
 
 };
 
-
+void PauseSystem();
 float FitFunction(Member member);
 bool compareByFit(const Member &a, const Member &b);
 bool compareByFit_gpu(const Member &a, const Member &b);
@@ -295,7 +295,7 @@ int main()
 			else
 			{
 				cout << "Access to the file was forbidden!" << std::endl;
-				system("PAUSE");
+				PauseSystem();
 			}
 		}
 
@@ -435,7 +435,6 @@ int main()
 
 			// Mutation max step annealing 
 			current_mutation_step_max = Mutation_step_max * pow(Mutation_annealing, gen);
-
 		}
 
 		//Course of last generation
@@ -492,7 +491,7 @@ int main()
 			else
 			{
 				cout << "Access to the file was forbidden!" << std::endl;
-				system("PAUSE");
+				PauseSystem();
 			}
 
 			file.close();
@@ -504,7 +503,7 @@ int main()
 
 		cout << "Processing time on CPU: " << duration_cpu.count() << endl << endl;
 
-		system("pause");
+		PauseSystem();
 
 	}
 
@@ -534,7 +533,7 @@ int main()
 			else
 			{
 				cout << "Access to the file was forbidden!" << std::endl;
-				system("PAUSE");
+				PauseSystem();
 			}
 		}
 
@@ -798,7 +797,7 @@ int main()
 			else
 			{
 				cout << "Access to the file was forbidden!" << std::endl;
-				system("PAUSE");
+				PauseSystem();
 			}
 
 			file_gpu.close();
@@ -817,7 +816,7 @@ int main()
 	if(do_run_on_cpu==1 && do_run_on_gpu==1)
 		cout << "Speedup: " << duration_cpu.count() / duration_gpu.count() << endl;
 
-	system("pause");
+	PauseSystem();
 	return 0;
 
 }
@@ -830,6 +829,13 @@ int main()
 	//
 	//==============================================================================================================================
 
+
+void PauseSystem()
+{
+	cout << "Press enter to continue ...";
+	cin.get();
+	return;
+}
 
 void Generate_Population(vector <Member> &Population)
 {
