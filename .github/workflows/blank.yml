@@ -32,9 +32,7 @@ jobs:
       
         # Rm plot
     - name: Rm
-      run: rm plot_data.m
-    - name: gitadd
-      run: git add .
+      run: git rm plot_data.m
     - name: gitpush
       run: git push
 
