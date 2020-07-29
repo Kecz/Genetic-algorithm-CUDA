@@ -1,7 +1,6 @@
 #include "cpu_implementation_lib.hpp"
 
 
-
 void Generate_Population(vector <Member> &Population)
 {
 	for (int i = 0; i < How_many_members; i++)

@@ -3,12 +3,12 @@
 
 #include <vector>
 #include <iostream>
+#include <cmath>
 
 #include "../config.h"
-#include "structs.cpp"
+#include "structs_lib.cpp"
 
 using namespace std;
-
 
 void Generate_Population(vector <Member> &);
 float FitFunction(Member);
@@ -20,6 +20,5 @@ int Roulete_Selection(vector <Member>);
 void Mutate(Member &, float);
 void Count_Fitness(vector <Member> &);
 void PauseSystem();
-
 
 #endif
