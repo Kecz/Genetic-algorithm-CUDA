@@ -7,8 +7,7 @@
 	- Members are sorted on basis of value of fitness and then each member is getting probability based on "rank based selection", which can be adjusted with parameters 'RANK_STEP_DOWN' and 'CROSSOVER_PROBABILITY'
 	- Roulette selection algorithm is used to choose random members
 	- To crossover process the "Blend Crossover" for Real-Coded Genetic Algorithms is used and it can be adjusted with parameter 'alpha' 
-	- In case of mutation, the mutated member is moved along x and y axis by radom value from range 
-	<-Mutation_step_max * Mutation_annealing ^ generation_number, Mutation_step_max * Mutation_annealing ^ generation_number>, parameter to adjust: 'MUTATION_PROBABILITY', 'Mutation_step_max', 'Mutation_annealing'
+	- In case of mutation, the mutated member is moved along x and y axis by radom value from range  <-Mutation_step_max * Mutation_annealing ^ generation_number, Mutation_step_max * Mutation_annealing ^ generation_number>, parameter to adjust: 'MUTATION_PROBABILITY', 'Mutation_step_max', 'Mutation_annealing'
 	- Optimum is calculated as an average from a few best members, the amount of members included in average can be adjusted with parameter 'how_many_included_average' (default: 1) 
 	- Each generation is saved to csv file, for CPU to file 'algorithm_results_cpu.csv', and for GPU to 'algorithm_results_gpu.csv'.
 */
@@ -88,7 +87,7 @@ int main(int argc, char* argv[])
 			if (file.good() == true)
 			{
 				cout << "The file was accessed" << endl;
-				file << How_many_members << "," << WHICH_FUNCTION << "\n";
+				file << How_many_members << "," << How_many_generations << "," << WHICH_FUNCTION << "\n";
 
 			}
 			else
@@ -135,10 +134,11 @@ int main(int argc, char* argv[])
 
 			if (Do_save_to_file == 1)
 			{
-				for (int j = 0; j < Population.size(); j++)
+				for (int j = 0; j < Population.size()-1; j++)
 				{
-					file << Population[j].x << "," << Population[j].y << "\n";
+					file << Population[j].x << "," << Population[j].y << ",";
 				}
+				file << Population[Population.size()-1].x << "," << Population[Population.size()-1].y << "\n";
 			}
 
 
@@ -247,10 +247,11 @@ int main(int argc, char* argv[])
 
 		if (Do_save_to_file == 1)
 		{
-			for (int j = 0; j < Population.size(); j++)
+			for (int j = 0; j < Population.size()-1; j++)
 			{
-				file << Population[j].x << "," << Population[j].y << "\n";
+				file << Population[j].x << "," << Population[j].y << ",";
 			}
+			file << Population[Population.size()-1].x << "," << Population[Population.size()-1].y << "\n";
 		}
 
 
@@ -326,7 +327,7 @@ int main(int argc, char* argv[])
 			if (file_gpu.good() == true)
 			{
 				cout << "You have access to the file!" << endl;
-				file_gpu << How_many_members << "," << WHICH_FUNCTION << "\n";
+				file_gpu << How_many_members << "," << How_many_generations << "," << WHICH_FUNCTION << "\n";
 
 			}
 			else
@@ -400,10 +401,11 @@ int main(int argc, char* argv[])
 
 		if (Do_save_to_file == 1)
 		{
-			for (int i = 0; i < How_many_members; i++)
+			for (int i = 0; i < How_many_members-1; i++)
 			{
-				file_gpu << host_thrust_member[i].x << "," << host_thrust_member[i].y << "\n";
+				file_gpu << host_thrust_member[i].x << "," << host_thrust_member[i].y << ",";
 			}
+			file_gpu << host_thrust_member[How_many_members-1].x << "," << host_thrust_member[How_many_members-1].y << "\n";
 		}
 
 		//Vectors in which are stored random numbers needed in process of crossover
@@ -547,10 +549,11 @@ int main(int argc, char* argv[])
 			}
 			if (Do_save_to_file == 1)
 			{
-				for (int i = 0; i < How_many_members; i++)
+				for (int i = 0; i < How_many_members-1; i++)
 				{
-					file_gpu << host_thrust_member[i].x << "," << host_thrust_member[i].y << "\n";
+					file_gpu << host_thrust_member[i].x << "," << host_thrust_member[i].y << ",";
 				}
+				file_gpu << host_thrust_member[How_many_members-1].x << "," << host_thrust_member[How_many_members-1].y << "\n";
 			}
 
 		}

@@ -15,7 +15,7 @@
 #define do_run_on_gpu 1
 #define how_many_included_average 1
 
-#define How_many_members 5000
+#define How_many_members 10
 #define How_many_generations 3
 //#define Mutation_step_min (float)0.1
 #define Mutation_step_max (float)1000

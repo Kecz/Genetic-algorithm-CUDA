@@ -7,11 +7,3 @@
 # Output files
 *.o
 *.csv
-
-# Nvidia Profiler files
-profiler/*
-profiler_reports/*
-
-# Images
-*.png
-*.jpg

@@ -42,6 +42,7 @@ clean:
 	rm -f $(objdir)/cpu_implementation_lib.o
 	rm -f $(objdir)/gpu_implementation_lib.o
 	rm -f $(objdir)/genetic_algorithm.o
+	rm -f $(objdir)/config.o
 	rm -f $(filename_results_cpu)
 	rm -f $(filename_results_gpu)
 
