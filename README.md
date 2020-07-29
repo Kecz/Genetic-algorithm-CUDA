@@ -8,6 +8,10 @@ This project is a genetic algorithm finding global minimum of a chosen function.
 
 Detailed description of algorithm can be found in the [genetic_algorithm.cu file](genetic_algorithm.cu).
 
+There are 6 build-in functions to test algorithm, they are described at the beggining of [genetic_algorithm.cu file](genetic_algorithm.cu). To change selected function, adjust parameter 'WHICH_FUNCTION' in [config file](config.h).
+
+Running [genetic_algorithm.cu file](genetic_algorithm.cu) shows in console value of finded optimum and creates csv file with the course of each generation.
+
 ## To compile
 
         make
@@ -34,10 +38,6 @@ If proper parameters in [config file](config.h) are properly set, results of the
 ## To use nvidia profiler
 
         sudo nvvp
-
-There are 6 build-in functions to test algorithm, they are described at the beggining of [genetic_algorithm.cu file](genetic_algorithm.cu). To change selected function, adjust parameter 'WHICH_FUNCTION' in [config file](config.h).
-
-Running [genetic_algorithm.cu file](genetic_algorithm.cu) shows in console value of finded optimum and creates csv file with the course of each generation.
 
 ## To plot course of each generation use matlab script
 
