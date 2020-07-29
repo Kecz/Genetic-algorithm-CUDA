@@ -10,7 +10,7 @@
 	- In case of mutation, the mutated member is moved along x and y axis by radom value from range 
 	<-Mutation_step_max * Mutation_annealing ^ generation_number, Mutation_step_max * Mutation_annealing ^ generation_number>, parameter to adjust: 'MUTATION_PROBABILITY', 'Mutation_step_max', 'Mutation_annealing'
 	- Optimum is calculated as an average from a few best members, the amount of members included in average can be adjusted with parameter 'how_many_included_average' (default: 1) 
-	- Each generation is saved to csv file, for CPU to file 'osobniki.csv', and for GPU to 'osobniki_gpu.csv'.
+	- Each generation is saved to csv file, for CPU to file 'algorithm_results_cpu.csv', and for GPU to 'algorithm_results_gpu.csv'.
 */
 /*
 	Build-in functions:
@@ -39,56 +39,13 @@
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
 
+#include "config.h"
+#include "src/cpu_implementation_lib.hpp"
+#include "src/structs.cpp"
+
+
 using namespace std;
 using namespace std::chrono;
-
-//Parameters to adjust algorithm
-#define range_min_x (float) -500
-#define range_max_x (float) 500
-#define range_min_y (float) -500
-#define range_max_y (float) 500
-#define WHICH_FUNCTION 6
-#define Do_show_members_cpu 0
-#define Do_show_members_gpu 0
-#define Do_show_generations 1
-#define Do_save_to_file 1
-#define do_run_on_cpu 1
-#define do_run_on_gpu 1
-#define how_many_included_average 1
-
-#define How_many_members 5000
-#define How_many_generations 3
-//#define Mutation_step_min (float)0.1
-#define Mutation_step_max (float)1000
-#define Mutation_annealing (float) 0.96
-#define alpha (float)0.1
-#define RANK_STEP_DOWN (float)0.3
-#define CROSSOVER_PROBABILITY (float)0.7
-#define MUTATION_PROBABILITY (float)0.05
-
-#define BLOCKS_PER_KERNEL 1000
-#define THREADS_PER_BLOCK 1024
-
-struct Member {
-
-	float x=0;
-	float y=0;
-	float fitness=0;
-	float probability=0;
-
-};
-
-void PauseSystem();
-float FitFunction(Member member);
-bool compareByFit(const Member &a, const Member &b);
-bool compareByFit_gpu(const Member &a, const Member &b);
-void Show_Population(vector <Member> Population);
-void Show_Population(Member *Population);
-float RandomFloat(float a, float b);
-int Roulete_Selection(vector <Member> Population);
-void Mutate(Member &member, float mutation_step_maximum);
-void Count_Fitness(vector <Member> &Population);
-void Generate_Population(vector <Member> &Population);
 
 
 __host__ __device__ bool operator<(const Member &lhs, const Member &rhs)
@@ -266,13 +223,41 @@ __global__ void Mutation_gpu(Member * thrust_pointer_new, float * do_mutation, f
 
 }
 
+bool compareByFit_gpu(const Member &a, const Member &b)
+{
+	return a.fitness > b.fitness;
+}
 
 
-int main()
+
+int main(int argc, char* argv[])
 {
 	srand(time(NULL));
 
-	cout << "Bartosz Bielinski & Piotr Winkler - Genetic Algorithm" << endl;
+	cout << "Bartosz Bielinski - Genetic Algorithm" << endl;
+
+	string save_file_name_cpu, save_file_name_gpu;
+	if (argc == 1)
+    {
+        printf("\nUsing default names for files with results: \n");
+        save_file_name_cpu = "algorithm_results_cpu.csv";
+        save_file_name_gpu = "algorithm_results_gpu.csv";
+        cout << "CPU results filename: " << save_file_name_cpu << endl;
+        cout << "GPU results filename: " << save_file_name_gpu << endl;
+    }
+    else if (argc == 3)
+    {
+        printf("\nUsing names for files with results passed with command line arguments: \n");
+        save_file_name_cpu = argv[1];
+        save_file_name_gpu = argv[2];
+        cout << "CPU results filename: " << save_file_name_cpu << endl;
+        cout << "GPU results filename: " << save_file_name_gpu << endl;
+    }
+    else
+    {
+		cout << "\nWrong input command line arguments\n" << endl;
+		return 1;
+    }
 
 	duration<double> duration_gpu;
 	duration<double> duration_cpu;
@@ -285,7 +270,7 @@ int main()
 
 		if (Do_save_to_file == 1)
 		{
-			file.open("osobniki.csv", std::ios::trunc);
+			file.open(save_file_name_cpu, std::ios::trunc);
 			if (file.good() == true)
 			{
 				cout << "The file was accessed" << endl;
@@ -523,7 +508,7 @@ int main()
 
 		if (Do_save_to_file == 1)
 		{
-			file_gpu.open("osobniki_gpu.csv", std::ios::trunc);
+			file_gpu.open(save_file_name_gpu, std::ios::trunc);
 			if (file_gpu.good() == true)
 			{
 				cout << "You have access to the file!" << endl;
@@ -820,164 +805,3 @@ int main()
 	return 0;
 
 }
-
-	//==============================================================================================================================
-	//
-	//
-	// External functions
-	//
-	//
-	//==============================================================================================================================
-
-
-void PauseSystem()
-{
-	cout << "Press enter to continue ...";
-	cin.get();
-	return;
-}
-
-void Generate_Population(vector <Member> &Population)
-{
-	for (int i = 0; i < How_many_members; i++)
-	{
-		float x_rand = RandomFloat(range_min_x, range_max_x);
-		float y_rand = RandomFloat(range_min_y, range_max_y);
-
-		Member member;
-		member.x = x_rand;
-		member.y = y_rand;
-
-
-		Population.push_back(member);
-	}
-
-	return;
-}
-
-
-float FitFunction(Member member)
-{
-	float fittness = 0;
-	if (WHICH_FUNCTION == 1)
-		fittness = -(sin(member.x) + cos(member.y));
-	else if (WHICH_FUNCTION == 2)
-		fittness = -((member.x)*(member.x) + (member.y)*(member.y));
-	else if (WHICH_FUNCTION == 3)
-		fittness = -((member.y)*sin(member.x) - (member.x)*cos(member.y));
-	else if (WHICH_FUNCTION == 4)
-		fittness = -(sin(member.x + member.y) + (member.x - member.y)*(member.x - member.y) - 1.5*member.x + 2.5*member.y + 1);
-	else if (WHICH_FUNCTION == 5)
-		fittness = -(-(member.y + 47)*sin(sqrt(abs((member.x / 2) + (member.y + 47)))) - member.x*sin(sqrt(abs(member.x - (member.y + 47)))));
-	else if (WHICH_FUNCTION == 6)
-		fittness = -(418.9829 * 2 - (member.x*sin(sqrt(abs(member.x))) + member.y*sin(sqrt(abs(member.y)))));
-	return fittness;
-}
-
-
-bool compareByFit(const Member &a, const Member &b)
-{
-	return a.fitness > b.fitness;
-}
-
-bool compareByFit_gpu(const Member &a, const Member &b)
-{
-	return a.fitness > b.fitness;
-}
-
-void Show_Population(vector <Member> Population)
-{
-	cout << endl;
-	for (int j = 0; j < Population.size(); j++)
-	{
-		cout << "Member " << j + 1 << ": x=" << Population[j].x << "  y=" << Population[j].y << " fit= " << Population[j].fitness <<" prob: "<<Population[j].probability<< endl;
-	}
-	cout << endl;
-}
-
-void Show_Population(Member *Population)
-{
-	cout << endl;
-	for (int j = 0; j < How_many_members; j++)
-	{
-		cout << "Member " << j + 1 << ": x=" << Population[j].x << "  y=" << Population[j].y << " fit= " << Population[j].fitness << " prob: " << Population[j].probability << endl;
-	}
-	cout << endl;
-}
-
-float RandomFloat(float a, float b)
-{
-	float random = ((float)rand()) / (float)RAND_MAX;
-	float diff = b - a;
-	float r = random * diff;
-	return a + r;
-}
-
-int Roulete_Selection(vector <Member> Population)
-{
-	float offset = 0.0;
-	float rand_cross = ((float)rand()) / (float)RAND_MAX;
-	int parent = 0;
-
-	//Roulette selection
-	for (int j = 0; j < Population.size(); j++)
-	{
-		offset += Population[j].probability;
-		if (offset > rand_cross)
-		{
-			parent = j;
-			break;
-		}
-	}
-
-	return parent;
-}
-
-void Mutate(Member &member, float mutation_step_maximum)
-{
-
-	float Mutation_step_x = RandomFloat(-mutation_step_maximum, mutation_step_maximum);
-	float Mutation_step_y = RandomFloat(-mutation_step_maximum, mutation_step_maximum);
-
-	// member.x = member.x + Mutation_step_x;
-	if (member.x + Mutation_step_x > range_max_x)
-	{
-		member.x = range_max_x - (Mutation_step_x - (range_max_x - member.x));
-	}
-	else if (member.x + Mutation_step_x < range_min_x)
-	{
-		member.x = range_min_x - (Mutation_step_x - (range_min_x - member.x));
-	}
-	else 
-	{
-		member.x = member.x + Mutation_step_x;
-	}
-
-	// member.y = member.y + Mutation_step_y;
-	if (member.y + Mutation_step_y > range_max_y)
-	{
-		member.y = range_max_y - (Mutation_step_y - (range_max_y - member.y));
-	}
-	else if (member.y + Mutation_step_y < range_min_y)
-	{
-		member.y = range_min_y - (Mutation_step_y - (range_min_y - member.y));
-	}
-	else
-	{
-		member.y = member.y + Mutation_step_y;
-	}
-
-	return;
-}
-
-void Count_Fitness(vector <Member> &Population)
-{
-	//Counting fitness for every member 
-	for (int j = 0; j < Population.size(); j++)
-	{
-		Population[j].fitness = FitFunction(Population[j]);
-	}
-
-	return;
-}
-
