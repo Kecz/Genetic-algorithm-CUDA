@@ -1,12 +1,12 @@
 clear;
 %Population na CPU
-%file = csvread('Your path to project\osobniki.csv');
+%file = csvread('Your path to project\algorithm_results_cpu.csv');
 
 %Population na GPU
-file = csvread('Your path to project\osobniki_gpu.csv');
+file = csvread('C:\STUDIA\Magisterskie\Semestr 1\Parallel_Processing_on_CUDA\Project\Genetic-algorithm-CUDA\results\algorithm_results_gpu.csv');
 
 how_many_members = file(1,1);
-Which_function = file(1,2);
+Which_function = file(1,3);
 Show_2D = 1;
 Show_3Din2D = 1;
 Show_3D = 1;
@@ -19,7 +19,7 @@ X_max = file(size(file, 1)-1,2);
 Y_min = file(size(file, 1),1);
 Y_max = file(size(file, 1),2);
 
-How_many_generations = ((size(file,1)-4)/how_many_members);
+How_many_generations = file(1,2);
 
 string = ["Amount of members = ", how_many_members, "Amount of generations = ",  How_many_generations, "Function nr ", Which_function];
 disp(string);
@@ -28,8 +28,8 @@ if(Show_2D == 1)
     figure('Name', 'Members-2D');
     pause(1);
     for i = 0:(How_many_generations-1)
-        x_member = file(2+i*how_many_members:how_many_members+i*how_many_members+1, 1);
-        y_member = file(2+i*how_many_members:how_many_members+i*how_many_members+1, 2);
+        x_member = file(2+i,1:2:end);
+        y_member = file(2+i,2:2:end);
         plot(x_member, y_member, 'ro')
         xlim([X_min X_max])
         ylim([Y_min Y_max])
@@ -61,8 +61,8 @@ if(Show_3Din2D == 1)
         surf(X, Y, Z, 'edgecolor', 'none');
         view(2)
         hold on
-        x_member = file(2+i*how_many_members:how_many_members+i*how_many_members+1, 1);
-        y_member = file(2+i*how_many_members:how_many_members+i*how_many_members+1, 2);
+        x_member = file(2+i,1:2:end);
+        y_member = file(2+i,2:2:end);
 
         if(Which_function ==1)
             z_member = (sin(x_member) + cos(y_member));
@@ -137,8 +137,8 @@ if(Show_3D == 1)
     for i = 0:(How_many_generations-1)
         surf(X, Y, Z, 'edgecolor', 'none');
         hold on
-        x_member = file(2+i*how_many_members:how_many_members+i*how_many_members+1, 1);
-        y_member = file(2+i*how_many_members:how_many_members+i*how_many_members+1, 2);
+        x_member = file(2+i,1:2:end);
+        y_member = file(2+i,2:2:end);
 
         if(Which_function ==1)
             z_member = (sin(x_member) + cos(y_member));
