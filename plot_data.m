@@ -1,9 +1,9 @@
 clear;
 %Population na CPU
-%file = csvread('Your path to project\algorithm_results_cpu.csv');
+%file = csvread('Your path to project\results\algorithm_results_cpu.csv');
 
 %Population na GPU
-file = csvread('C:\STUDIA\Magisterskie\Semestr 1\Parallel_Processing_on_CUDA\Project\Genetic-algorithm-CUDA\results\algorithm_results_gpu.csv');
+file = csvread('Your path to project\results\algorithm_results_gpu.csv');
 
 how_many_members = file(1,1);
 Which_function = file(1,3);
